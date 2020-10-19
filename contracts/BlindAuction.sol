@@ -11,6 +11,7 @@ contract BlindAuction {
     uint public revealDuration = 10; //blocks
     bool public ended;
     
+    
 
     //state
     address public highestBidder;
@@ -18,6 +19,8 @@ contract BlindAuction {
     
     //events
     event WinnerClaimed(address winner, uint highestBid);
+    // for debugging
+    event PotentialWinnerFound(address winner, uint highestBid);
 
     //modifiers
     modifier onlyBefore(uint _block) { require(block.number < _block); _; }
@@ -31,6 +34,7 @@ contract BlindAuction {
 
     mapping (address => Bid[]) public bids;
     mapping (address => uint) pendingReturns;
+    mapping (address => uint) refunded;
 
     constructor(
         
@@ -62,7 +66,7 @@ contract BlindAuction {
         public
         onlyAfter(biddingEnd)
         onlyBefore(revealEnd)
-        returns (uint refundAmount)
+        //returns (uint)
     {
         uint length = bids[msg.sender].length;
         require(_values.length == length);
@@ -70,6 +74,7 @@ contract BlindAuction {
         require(_secret.length == length);
 
         uint refund = 0;
+        
         // iterate through all the bids
         for (uint i = 0; i < length; i++) {
             Bid storage bidToCheck = bids[msg.sender][i];
@@ -91,7 +96,10 @@ contract BlindAuction {
             bidToCheck.blindedBid = bytes32(0);
         }
         msg.sender.transfer(refund);
-        return refund;
+        refunded[msg.sender] += refund;
+
+        //return refund;
+        
     }
 
     // Withdraw a bid that is the winning bid, 
@@ -137,7 +145,38 @@ contract BlindAuction {
         }
         highestBid = value;
         highestBidder = bidder;
+        emit PotentialWinnerFound(highestBidder, highestBid);
         return true;
+    }
+
+    function checkBidAmount() view public returns (uint)
+    {
+        if (bids[msg.sender].length > 0) {
+            return bids[msg.sender][0].deposit;
+        }
+        // random number
+        return 69420;
+    }
+
+    function checkRefunded() view public returns (uint)
+    {
+        return refunded[msg.sender];
+    }
+
+    function checkHash(
+        uint[] memory _values,
+        bool[] memory _fake,
+        bytes32[] memory _secret
+    ) view public returns (uint)
+    {
+        if (bids[msg.sender].length > 0) {
+            if (bids[msg.sender][0].blindedBid != keccak256(abi.encodePacked(_values[0], _fake[0], _secret[0]))) {
+                return 0;
+            }
+            return 1;
+        }
+        return 69420;
+        
     }
 
 

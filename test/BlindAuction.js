@@ -1,4 +1,5 @@
-const keccak256 = require('keccak256')
+//const keccak256 = require('keccak256');
+const Web3Utils = require('web3-utils');
 const BlindAuction = artifacts.require("BlindAuction");
 const helper = require('../utils/utils.js');
 
@@ -14,8 +15,18 @@ contract("BlindAuction", async (accounts) => {
 
   it("should be send a bid", async() => {
     let auction = await BlindAuction.deployed();
-    await auction.bid(keccak256(4, false, "0x123"), {from: accounts[1], value: web3.utils.toWei("4")})
-    await auction.bid(keccak256(3, false, "0x123"), {from: accounts[2], value: web3.utils.toWei("3")})
+    await auction.bid(Web3Utils.soliditySha3(4, false, "0x123"), {from: accounts[1], value: web3.utils.toWei('4', 'wei')})
+    let amt1 = await auction.checkBidAmount({from: accounts[1]});
+    console.log("bid for account[1]" + amt1.toString());
+    //await auction.bid(Web3Utils.soliditySha3Raw(3, false, "0x123"), {from: accounts[2], value: web3.utils.toWei('3', 'wei')})
+    let amt2 = await auction.checkBidAmount({from: accounts[2]});
+    console.log("bid for account[2]" + amt2.toString());
+
+
+    let data = await auction.checkHash([4], [false], ["0x123"], {from: accounts[1]});
+    
+    console.log("checkHash is: " + data.toString());
+
   });
 
   it("should advance the block", async() => {
@@ -30,11 +41,12 @@ contract("BlindAuction", async (accounts) => {
 
   it("should be able to reveal", async() => {
     let auction = await BlindAuction.deployed();
-    //await auction.bid(keccak256(4, false, "0x123"), {from: accounts[1], value: web3.utils.toWei("4")})
-    //await auction.bid(keccak256(3, false, "0x123"), {from: accounts[2], value: web3.utils.toWei("3")})
-
-    let amount = await auction.reveal([1], [false], ["0x123"], {from: accounts[2]})
-    console.log(amount)
+    await auction.reveal([4], [false], ["0x123"], {from: accounts[1]});
+    await auction.reveal([3], [false], ["0x123"], {from: accounts[2]});
+    let data = await auction.checkRefunded({from: accounts[2]});
+    
+    console.log(data.toString());
+  
     //assert.equal(amount, 3);
   
   });
