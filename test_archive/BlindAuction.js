@@ -1,5 +1,6 @@
-//const keccak256 = require('keccak256');
-const Web3Utils = require('web3-utils');
+// testing basic functionality of BlindAuction
+
+const { ethers } = require("ethers");
 const BlindAuction = artifacts.require("BlindAuction");
 const helper = require('../utils/utils.js');
 
@@ -13,42 +14,48 @@ contract("BlindAuction", async (accounts) => {
     assert.equal(owner, accounts[0]);
   });
 
-  it("should be send a bid", async() => {
+  // it("should be able to send a bid, and process the hashing for the blindedbid as expected", async() => {
+  //   let auction = await BlindAuction.deployed();
+  //   let hashed = ethers.utils.solidityKeccak256(['uint', 'bool', 'bytes32'], [1, false, "0x111122223333444455556666777788889999AAAABBBBCCCCDDDDEEEEFFFFCCCC"]);
+  //   //console.log(hashed);
+  //   await auction.bid(hashed, {from: accounts[1], value: web3.utils.toWei('1', 'wei')});
+  //   let data = await auction.checkHash([1], [false], ["0x111122223333444455556666777788889999AAAABBBBCCCCDDDDEEEEFFFFCCCC"], {from: accounts[1]});
+  //   assert.equal(true, data);
+  //   // deposit value is assumed to be processed correctly
+  // });
+
+  it("should be able to send a bid", async() => {
     let auction = await BlindAuction.deployed();
-    await auction.bid(Web3Utils.soliditySha3(4, false, "0x123"), {from: accounts[1], value: web3.utils.toWei('4', 'wei')})
-    let amt1 = await auction.checkBidAmount({from: accounts[1]});
-    console.log("bid for account[1]" + amt1.toString());
-    //await auction.bid(Web3Utils.soliditySha3Raw(3, false, "0x123"), {from: accounts[2], value: web3.utils.toWei('3', 'wei')})
-    let amt2 = await auction.checkBidAmount({from: accounts[2]});
-    console.log("bid for account[2]" + amt2.toString());
-
-
-    let data = await auction.checkHash([4], [false], ["0x123"], {from: accounts[1]});
-    
-    console.log("checkHash is: " + data.toString());
-
+    let hashed = ethers.utils.solidityKeccak256(['uint', 'bool', 'bytes32'], [4, false, "0x111122223333444455556666777788889999AAAABBBBCCCCDDDDEEEEFFFFCCCC"]);
+    await auction.bid(hashed, {from: accounts[1], value: web3.utils.toWei('4', 'wei')});
+    let hashed2 = ethers.utils.solidityKeccak256(['uint', 'bool', 'bytes32'], [3, false, "0x111122223333444455556666777788889999AAAABBBBCCCCDDDDEEEEFFFFCCCC"]);
+    await auction.bid(hashed2, {from: accounts[2], value: web3.utils.toWei('3', 'wei')});
   });
 
-  it("should advance the block", async() => {
+  it("should advance 10 blocks", async() => {
     let block_initial = await web3.eth.getBlockNumber();
     for (i = 0; i < 10; i++) {
       await helper.advanceBlock();
     }
     let block_final = await web3.eth.getBlockNumber();
-    console.log(block_final);
-    // assert.equal(block_initial + 1, block_final);
+    //console.log(block_final);
+    assert.equal(block_initial + 10, block_final);
   });
 
-  it("should be able to reveal", async() => {
+  it("should be able to reveal and process refunds properly", async() => {
+    // this test must be run after "it should be able to send a bid - has the relevant txs"
     let auction = await BlindAuction.deployed();
-    await auction.reveal([4], [false], ["0x123"], {from: accounts[1]});
-    await auction.reveal([3], [false], ["0x123"], {from: accounts[2]});
-    let data = await auction.checkRefunded({from: accounts[2]});
+    // lower bid reveals first
+    await auction.reveal([3], [false], ["0x111122223333444455556666777788889999AAAABBBBCCCCDDDDEEEEFFFFCCCC"], {from: accounts[2]});
+    await auction.reveal([4], [false], ["0x111122223333444455556666777788889999AAAABBBBCCCCDDDDEEEEFFFFCCCC"], {from: accounts[1]});
     
-    console.log(data.toString());
-  
-    //assert.equal(amount, 3);
-  
+    let data = await auction.checkPendingReturns({from: accounts[2]});
+    //console.log(data.toString());
+    //acct2 should have pendingReturns == 3
+    assert.equal(data, 3);
+    //acct1 should have pendingReturns == 0
+    let data2 = await auction.checkPendingReturns({from: accounts[1]});
+    assert.equal(data2, 0);
   });
 
   

@@ -1,4 +1,4 @@
-#Aim of Project
+# Aim of Project
 
 This project fulfills the requirements for NTU's CZ4153 Blockchain Technology.
 

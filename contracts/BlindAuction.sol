@@ -1,18 +1,19 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.5.16;
+import './DomainRegistry.sol';
 
 contract BlindAuction {
     
     //static variables
-    address public owner;
+    address payable public owner;
+    bytes32 public node;
     uint public biddingEnd;
     uint public revealEnd;
     uint public biddingDuration = 10; //blocks
     uint public revealDuration = 10; //blocks
     bool public ended;
+    bool public domainClaimed;
     
-    
-
     //state
     address public highestBidder;
     uint public highestBid;
@@ -32,14 +33,14 @@ contract BlindAuction {
         uint deposit;
     }
 
+    //mappings
     mapping (address => Bid[]) public bids;
     mapping (address => uint) pendingReturns;
     mapping (address => uint) refunded;
 
-    constructor(
-        
-    ) public {
+    constructor(bytes32 _node) public {
         owner = msg.sender;
+        node = _node;
         biddingEnd = block.number + biddingDuration;
         revealEnd = biddingEnd + revealDuration;
     }
@@ -66,7 +67,6 @@ contract BlindAuction {
         public
         onlyAfter(biddingEnd)
         onlyBefore(revealEnd)
-        //returns (uint)
     {
         uint length = bids[msg.sender].length;
         require(_values.length == length);
@@ -81,14 +81,13 @@ contract BlindAuction {
             (uint value, bool fake, bytes32 secret) =
                     (_values[i], _fake[i], _secret[i]);
             if (bidToCheck.blindedBid != keccak256(abi.encodePacked(value, fake, secret))) {
-                // Bid was not actually revealed.
-                // Do not refund deposit.
-                // Check the next bid
+                // The proof does not match the blindedbid, do not refund deposit.
                 continue;
             }
             refund += bidToCheck.deposit;
             if (!fake && bidToCheck.deposit >= value) {
                 if (checkIfHighestBid(msg.sender, value))
+                    // if the bid is the current highest, then don't refund it cos it might be the winner.
                     refund -= value;
             }
             // Make it impossible for the sender to re-claim
@@ -97,9 +96,6 @@ contract BlindAuction {
         }
         msg.sender.transfer(refund);
         refunded[msg.sender] += refund;
-
-        //return refund;
-        
     }
 
     // Withdraw a bid that is the winning bid, 
@@ -116,18 +112,22 @@ contract BlindAuction {
         }
     }
 
-    /// End the auction and send the highest bid
-    /// to the beneficiary.
+    /// End the auction and send the highest bid to the registry.
+    // If I'm not wrong, you only have to check that msg.sender == highestBidder,
+    // and don't have to check the actual bid again.
     function claimWinnerReward()
         public
         onlyAfter(revealEnd)
     {
-        //require(!ended);
-        emit WinnerClaimed(highestBidder, highestBid);
-        //ended = true;
-        //beneficiary.transfer(highestBid);
+        // winner himself must claim
+        require(msg.sender == highestBidder);
+        // once claimed, cannot reclaim
+        require(domainClaimed == false);
+        domainClaimed = true;
+        // 'owner' refers to the DomainRegistry that created this auction
+        DomainRegistry registry = DomainRegistry(owner);
+        registry.registerOwner.value(highestBid)(node, msg.sender, highestBid);
 
-        // register winner address as owner
     }
 
     // This is an "internal" function which means that it
@@ -149,6 +149,9 @@ contract BlindAuction {
         return true;
     }
 
+//------------------------------------------------------------------------------
+//debug helper functions
+
     function checkBidAmount() view public returns (uint)
     {
         if (bids[msg.sender].length > 0) {
@@ -163,22 +166,29 @@ contract BlindAuction {
         return refunded[msg.sender];
     }
 
+    function checkPendingReturns() view public returns (uint)
+    {
+        return pendingReturns[msg.sender];
+    }
+
     function checkHash(
         uint[] memory _values,
         bool[] memory _fake,
         bytes32[] memory _secret
-    ) view public returns (uint)
+    ) view public returns (bool)
     {
         if (bids[msg.sender].length > 0) {
             if (bids[msg.sender][0].blindedBid != keccak256(abi.encodePacked(_values[0], _fake[0], _secret[0]))) {
-                return 0;
+                return false;
             }
-            return 1;
+            return true;
         }
-        return 69420;
-        
+        return false;
     }
 
+    function checkHighestBid() view public returns (uint) {
+        return highestBid;
+    }
 
 }
 
