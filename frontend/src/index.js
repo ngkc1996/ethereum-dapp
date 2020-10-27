@@ -21,7 +21,9 @@ class App {
     this._auctions[domain] = await this._domainRegistry.methods.startAuction(namehash(domain)).call()
   }
 
-  getRegisteredDomains() {
+  async getRegisteredDomains() {
+    const domains = await this._domainRegistry.methods.getRegisteredDomains().call();
+    console.log(domains);
   }
 
   getCurrentAuctions() {
