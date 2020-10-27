@@ -49,7 +49,7 @@ class App {
 
   async getAuctionState(domain) {
     const address = await this._getAddressFor(domain);
-    //TODO: getAuctionState to be implemented on BlindAuction contract
+    //TODO: remove
   }
 
   //sends bid
