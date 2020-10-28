@@ -89,9 +89,15 @@ contract DomainRegistry {
         // update currentAuctions
         for (uint i=0; i<currentAuctions.length; i++) {
             if (keccak256(abi.encodePacked(currentAuctions[i])) == keccak256(abi.encodePacked(node))) {
-                currentAuctions[i] = currentAuctions[currentAuctions.length-2];
-                delete currentAuctions[currentAuctions.length-1];
-                break;
+                if (currentAuctions.length == 1) {
+                    delete currentAuctions[i];
+                    break;
+                } else {
+                    currentAuctions[i] = currentAuctions[currentAuctions.length-2];
+                    delete currentAuctions[currentAuctions.length-1];
+                    break;
+                }
+                
             }
         }
 
@@ -134,12 +140,12 @@ contract DomainRegistry {
                 } else {
                     currentAuctions[i] = currentAuctions[currentAuctions.length-2];
                     delete currentAuctions[currentAuctions.length-1];
-                    break;
                 }
+            } else {
+                nodes[i] = (currentAuctions[i]);
+                auctionAddresses[i] = (records[currentAuctions[i]].auctionAddress);
+                auctionStartBlocks[i] = (records[currentAuctions[i]].auctionStartBlock);
             }
-            nodes[i] = (currentAuctions[i]);
-            auctionAddresses[i] = (records[currentAuctions[i]].auctionAddress);
-            auctionStartBlocks[i] = (records[currentAuctions[i]].auctionStartBlock);
         }
 
         return (nodes, auctionAddresses, auctionStartBlocks);

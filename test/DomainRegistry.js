@@ -1,9 +1,10 @@
 
 const { ethers } = require("ethers");
-let namehash = require('eth-ens-namehash');
+//let namehash = require('eth-ens-namehash');
 const DomainRegistry = artifacts.require("DomainRegistry");
 const BlindAuction = artifacts.require("BlindAuction");
 const helper = require('../utils/utils.js');
+const { strict } = require("assert");
 
 contract("DomainRegistry", async (accounts) => {
   
@@ -31,8 +32,16 @@ contract("DomainRegistry", async (accounts) => {
     let node = "xxx.ntu";
     // acct1 starts the auction instance for xxx.ntu
     await registry.startAuction(node, {from: accounts[1]});
-    console.log("And a second one");
+    // check which block it is
+    let block_curr = await web3.eth.getBlockNumber();
+    console.log("Auction started at block ", block_curr);
+    
+    //console.log("And a second one");
     //await registry.startAuction(node, {from: accounts[1]});
+
+    // trying getCurrentAuctions()
+    console.log(await registry.getCurrentAuctions());
+
     // get the address of the auctionInstance
     let address = await registry.viewAuctionAddress(node);
     let auctionInstance = await BlindAuction.at(address);
@@ -49,7 +58,7 @@ contract("DomainRegistry", async (accounts) => {
       await helper.advanceBlock();
     }
     let block_final = await web3.eth.getBlockNumber();
-    //console.log(block_final);
+    console.log("It is now block ", block_final);
     assert.equal(block_initial + 10, block_final);
   });
 
@@ -70,7 +79,7 @@ contract("DomainRegistry", async (accounts) => {
       await helper.advanceBlock();
     }
     let block_final = await web3.eth.getBlockNumber();
-    console.log(block_final);
+    console.log("It is now block ", block_final);
     assert.equal(block_initial + 10, block_final);
   });
 
@@ -80,7 +89,8 @@ contract("DomainRegistry", async (accounts) => {
     let node = "xxx.ntu";
     let address = await registry.viewAuctionAddress(node);
     let auctionInstance = await BlindAuction.at(address);
-    //console.log(await auctionInstance.checkHighestBid());
+    
+    //console.log("Highest bid for the auction is ", await auctionInstance.checkHighestBid());
 
     await auctionInstance.claimWinnerReward({from: accounts[1]});
     //assert.equal(accounts[1], await registry.viewRecordOwner(node));
