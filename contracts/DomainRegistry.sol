@@ -1,6 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0
-pragma solidity ^0.5.16;
+// pragma solidity ^0.5.16;
+pragma solidity ^0.6.0;
+// to implement functions that return string[]
+pragma experimental ABIEncoderV2;
 import './BlindAuction.sol';
+
+// "node" generally refers to domain name
 
 contract DomainRegistry {
 
@@ -15,23 +20,25 @@ contract DomainRegistry {
     //static variables
     uint durationOfAuction = 50; //if after 50 blocks there is no claimant, the auction is voided
     address public owner;
-    bytes32[] registeredDomains;
-    bytes32[] currentAuctions; 
+    string[] registeredDomains; // nodes that are registered
+    string[] currentAuctions; //stores nodes that have active auctions
 
 
     // add list of current auctions
 
     //mappings
-    mapping(bytes32=>Record) records;
+    mapping(string=>Record) records;
+    // storing strings
+    //mapping()
 
     //events
     // should this event also give the string form of the domain?
-    event NewAuctionStarted(bytes32 node, address auctionAddress);
-    event NewDomainClaimed(bytes32 node, address newOwner, uint highestBid);
+    event NewAuctionStarted(string node, address auctionAddress);
+    event NewDomainClaimed(string node, address newOwner, uint highestBid);
     event RecordsUpdate();
 
     // modifiers
-    modifier validAuctionContract(bytes32 node) {
+    modifier validAuctionContract(string memory node) {
         //the auction contract for that node sent the msg
         require(records[node].auctionAddress == msg.sender);
         // the auction has not "ended" yet, still valid period for claiming domain
@@ -39,12 +46,13 @@ contract DomainRegistry {
         _;
     }
 
-    modifier onlyUnregisteredDomain(bytes32 node) {
-        require(records[node].registered == false);
+    modifier onlyUnregisteredDomain(string memory node) {
+        require(records[node].registered == false,
+                "The domain is already registered.");
         _;
     }
 
-    modifier noOngoingAuction(bytes32 node) {
+    modifier noOngoingAuction(string memory node) {
         //the last auction (if any) has ended, and a reasonable amount of time has been given to claim domain
         if (records[node].hasAuctionBefore == true) {
             require(records[node].auctionStartBlock + durationOfAuction < block.number);
@@ -58,7 +66,7 @@ contract DomainRegistry {
     }
 
     // check if domain is registered already
-    function checkIfRegistered(bytes32 node) 
+    function checkIfRegistered(string memory node) 
         public
         view
         returns (bool) 
@@ -70,7 +78,7 @@ contract DomainRegistry {
         }
     }
 
-    function registerOwner(bytes32 node, address newOwner, uint highestBid)
+    function registerOwner(string memory node, address newOwner, uint highestBid)
         public
         payable
         validAuctionContract(node)
@@ -80,7 +88,7 @@ contract DomainRegistry {
         registeredDomains.push(node);
         // update currentAuctions
         for (uint i=0; i<currentAuctions.length; i++) {
-            if (currentAuctions[i] == node) {
+            if (keccak256(abi.encodePacked(currentAuctions[i])) == keccak256(abi.encodePacked(node))) {
                 currentAuctions[i] = currentAuctions[currentAuctions.length-2];
                 delete currentAuctions[currentAuctions.length-1];
                 break;
@@ -90,7 +98,7 @@ contract DomainRegistry {
         emit NewDomainClaimed(node, newOwner, highestBid);
     }
 
-    function startAuction(bytes32 node)
+    function startAuction(string memory node)
         public
         onlyUnregisteredDomain(node)
         noOngoingAuction(node)
@@ -111,26 +119,35 @@ contract DomainRegistry {
 
     // get current auction addresses and their nodes
     // also checks if the auctions in the list have expired.
-    function getCurrentAuctions() public returns (bytes32[] memory, address[] memory) {
-        bytes32[] memory nodes;
+    function getCurrentAuctions() public returns (string[] memory, address[] memory, uint[] memory) {
+        string[] memory nodes;
         address[] memory auctionAddresses;
+        uint[] memory auctionStartBlocks;
 
         for (uint i=0; i<currentAuctions.length; i++) {
+            // if auction is no longer ongoing
             if (records[currentAuctions[i]].auctionStartBlock + durationOfAuction > block.number) {
-                currentAuctions[i] = currentAuctions[currentAuctions.length-2];
-                delete currentAuctions[currentAuctions.length-1];
-                break;
+                // if there is only 1 element in currentAuctions, simply delete it 
+                if (currentAuctions.length == 1) {
+                    delete currentAuctions[i];
+                // else remove corresponding node from currentAuctions, move last entry to the empty slot
+                } else {
+                    currentAuctions[i] = currentAuctions[currentAuctions.length-2];
+                    delete currentAuctions[currentAuctions.length-1];
+                    break;
+                }
             }
             nodes[i] = (currentAuctions[i]);
             auctionAddresses[i] = (records[currentAuctions[i]].auctionAddress);
+            auctionStartBlocks[i] = (records[currentAuctions[i]].auctionStartBlock);
         }
 
-        return (nodes, auctionAddresses);
+        return (nodes, auctionAddresses, auctionStartBlocks);
     }
 
     // gets registered domains and their owner addresses
-    function getRegisteredDomains() public view returns (bytes32[] memory, address[] memory) {
-        bytes32[] memory nodes;
+    function getRegisteredDomains() public view returns (string[] memory, address[] memory) {
+        string[] memory nodes;
         address[] memory ownerAddresses;
 
         for (uint i=0; i<registeredDomains.length; i++) {
@@ -144,7 +161,7 @@ contract DomainRegistry {
 // ----------------------------------------------------------------------------------
 // debug helper functions
 
-    function viewAuctionAddress(bytes32 node) public view returns (address)
+    function viewAuctionAddress(string memory node) public view returns (address)
     {
         return records[node].auctionAddress;
     }
@@ -154,12 +171,12 @@ contract DomainRegistry {
         return address(this);
     }
 
-    function viewRecordOwner(bytes32 node) public view returns (address)
+    function viewRecordOwner(string memory node) public view returns (address)
     {
         return records[node].owner;
     }
 
-    function viewRegistration(bytes32 node) public view returns (bool)
+    function viewRegistration(string memory node) public view returns (bool)
     {
         return records[node].registered;
     }

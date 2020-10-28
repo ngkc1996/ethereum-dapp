@@ -28,9 +28,11 @@ contract("DomainRegistry", async (accounts) => {
     // mirrors "should be able to send a bid, and process the hashing for the blindedbid as expected"
     // test for BlindAuction.
     let registry = await DomainRegistry.deployed();
-    let node = await namehash.hash("xxx.ntu");
+    let node = "xxx.ntu";
     // acct1 starts the auction instance for xxx.ntu
     await registry.startAuction(node, {from: accounts[1]});
+    console.log("And a second one");
+    //await registry.startAuction(node, {from: accounts[1]});
     // get the address of the auctionInstance
     let address = await registry.viewAuctionAddress(node);
     let auctionInstance = await BlindAuction.at(address);
@@ -54,7 +56,7 @@ contract("DomainRegistry", async (accounts) => {
   it("should be able to reveal and process refunds properly", async() => {
     // this test must be run after "it should be able to send a bid - has the relevant txs"
     let registry = await DomainRegistry.deployed();
-    let node = await namehash.hash("xxx.ntu");
+    let node = "xxx.ntu";
     let address = await registry.viewAuctionAddress(node);
     let auctionInstance = await BlindAuction.at(address);
     // lower bid reveals first
@@ -75,7 +77,7 @@ contract("DomainRegistry", async (accounts) => {
   it("should be able to reveal and process refunds properly", async() => {
     // this test must be run after "it should be able to send a bid - has the relevant txs"
     let registry = await DomainRegistry.deployed();
-    let node = await namehash.hash("xxx.ntu");
+    let node = "xxx.ntu";
     let address = await registry.viewAuctionAddress(node);
     let auctionInstance = await BlindAuction.at(address);
     //console.log(await auctionInstance.checkHighestBid());

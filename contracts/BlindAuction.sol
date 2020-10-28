@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: GPL-3.0
-pragma solidity ^0.5.16;
+//pragma solidity ^0.5.16;
+pragma solidity ^0.6.0;
 import './DomainRegistry.sol';
 
 contract BlindAuction {
     
     //static variables
     address payable public owner;
-    bytes32 public node;
+    string public node;
     uint public biddingEnd;
     uint public revealEnd;
     uint public biddingDuration = 10; //blocks
@@ -38,7 +39,7 @@ contract BlindAuction {
     mapping (address => uint) pendingReturns;
     mapping (address => uint) refunded;
 
-    constructor(bytes32 _node) public {
+    constructor(string memory _node) public {
         owner = msg.sender;
         node = _node;
         biddingEnd = block.number + biddingDuration;
