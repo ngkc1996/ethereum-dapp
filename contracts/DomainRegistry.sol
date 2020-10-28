@@ -126,26 +126,24 @@ contract DomainRegistry {
     // get current auction addresses and their nodes
     // also checks if the auctions in the list have expired.
     function getCurrentAuctions() public returns (string[] memory, address[] memory, uint[] memory) {
-        string[] memory nodes;
-        address[] memory auctionAddresses;
-        uint[] memory auctionStartBlocks;
+        string[] memory nodes = new string[](currentAuctions.length);
+        address[] memory auctionAddresses = new address[](currentAuctions.length);
+        uint[] memory auctionStartBlocks = new uint[](currentAuctions.length);
 
-        for (uint i=0; i<currentAuctions.length; i++) {
-            // if auction is no longer ongoing
+        uint i = 0;
+        uint j = 0;
+        for (i=0; i<currentAuctions.length; i++) {
             if (records[currentAuctions[i]].auctionStartBlock + durationOfAuction > block.number) {
-                // if there is only 1 element in currentAuctions, simply delete it 
-                if (currentAuctions.length == 1) {
-                    delete currentAuctions[i];
-                // else remove corresponding node from currentAuctions, move last entry to the empty slot
-                } else {
-                    currentAuctions[i] = currentAuctions[currentAuctions.length-2];
-                    delete currentAuctions[currentAuctions.length-1];
-                }
-            } else {
-                nodes[i] = (currentAuctions[i]);
-                auctionAddresses[i] = (records[currentAuctions[i]].auctionAddress);
-                auctionStartBlocks[i] = (records[currentAuctions[i]].auctionStartBlock);
+                nodes[j] = currentAuctions[i];
+                auctionAddresses[j] = records[currentAuctions[i]].auctionAddress;
+                auctionStartBlocks[j] = records[currentAuctions[i]].auctionStartBlock;
+                j++;
             }
+        }
+
+        delete currentAuctions;
+        for (i=0; i<j; i++) {
+            currentAuctions.push(nodes[i]);
         }
 
         return (nodes, auctionAddresses, auctionStartBlocks);

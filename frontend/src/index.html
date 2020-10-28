@@ -2,8 +2,46 @@
 <html>
 <head>
   <title>BlindAuction</title>
+  <script src="index.js"></script>
 </head>
 <body>
 
+  <!--auctions listing section-->
+  <div>
+    <h3>Ongoing Auctions</h3>
+    <div id="auctions__listing"></div>
+    <button id="auctions__refresh">Refresh</button>
+  </div>
+
+  <div id="new_auction">
+    <h3>New Auction</h3>
+    <label for="new_auction__domain">Domain Name:</label>
+    <input id="new_auction__domain" type="text"/>
+    <button id="new_auction__button">Start Auction</button>
+  </div>
+  </div>
+
+  <div id="more">
+
+  </div>
+
+  <div id="transaction">
+    <h3>Send Ether</h3>
+    <div>
+      <label for="transaction__amount">Amount:</label>
+      <input id="transaction__amount" type="number"/>
+    </div>
+    <div>
+      <label for="transaction__domain">Domain:</label>
+      <input id="transaction__domain" type="text"/>
+    </div>
+  </div>
+
+  <div id="account">
+    <h3>Account</h3>
+    <div id="account__info">
+
+    </div>
+  </div>
 </body>
 </html>
