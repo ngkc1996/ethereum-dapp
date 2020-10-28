@@ -29,7 +29,13 @@ class App {
   //returns registered domain: array of string => address
   //address can be used to identify which domain names belong to user
   async getRegisteredDomains() {
-    return this._domainRegistry.methods.getRegisteredDomains().call();
+    const registered = await this._domainRegistry.methods.getRegisteredDomains().call();
+    const domains = registered[0];
+    const addresses = registered[1];
+    return domains.map((_, i) => ({
+      domain: domains[i],
+      address: addresses[i],
+    }));
   }
 
   //returns auctioning domains: array of string => auction state
