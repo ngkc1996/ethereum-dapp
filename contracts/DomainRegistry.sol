@@ -161,6 +161,16 @@ contract DomainRegistry {
         return (nodes, ownerAddresses);
     }
 
+    //if registered, resolved to owner address, if auctioning, resolve to auction address
+    //empty domain returns address(0)
+    function resolveDomain(string memory domain) public view returns (address) {
+        if (records[domain].registered) {
+            return records[domain].owner;
+        } else {
+            return records[domain].auctionAddress;
+        }
+    }
+
 
 // ----------------------------------------------------------------------------------
 // debug helper functions
