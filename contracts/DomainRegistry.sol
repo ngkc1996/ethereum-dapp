@@ -35,7 +35,6 @@ contract DomainRegistry {
     // should this event also give the string form of the domain?
     event NewAuctionStarted(string node, address auctionAddress);
     event NewDomainClaimed(string node, address newOwner, uint highestBid);
-    event RecordsUpdate();
 
     // modifiers
     modifier validAuctionContract(string memory node) {
@@ -125,27 +124,26 @@ contract DomainRegistry {
 
     // get current auction addresses and their nodes
     // also checks if the auctions in the list have expired.
+    //TODO: remove start blocks
     function getCurrentAuctions() public returns (string[] memory, address[] memory, uint[] memory) {
-        string[] memory nodes;
-        address[] memory auctionAddresses;
-        uint[] memory auctionStartBlocks;
+        string[] memory nodes = new string[](currentAuctions.length);
+        address[] memory auctionAddresses = new address[](currentAuctions.length);
+        uint[] memory auctionStartBlocks = new uint[](currentAuctions.length);
 
-        for (uint i=0; i<currentAuctions.length; i++) {
-            // if auction is no longer ongoing
+        uint i = 0;
+        uint j = 0;
+        for (i=0; i<currentAuctions.length; i++) {
             if (records[currentAuctions[i]].auctionStartBlock + durationOfAuction > block.number) {
-                // if there is only 1 element in currentAuctions, simply delete it 
-                if (currentAuctions.length == 1) {
-                    delete currentAuctions[i];
-                // else remove corresponding node from currentAuctions, move last entry to the empty slot
-                } else {
-                    currentAuctions[i] = currentAuctions[currentAuctions.length-2];
-                    delete currentAuctions[currentAuctions.length-1];
-                }
-            } else {
-                nodes[i] = (currentAuctions[i]);
-                auctionAddresses[i] = (records[currentAuctions[i]].auctionAddress);
-                auctionStartBlocks[i] = (records[currentAuctions[i]].auctionStartBlock);
+                nodes[j] = currentAuctions[i];
+                auctionAddresses[j] = records[currentAuctions[i]].auctionAddress;
+                auctionStartBlocks[j] = records[currentAuctions[i]].auctionStartBlock;
+                j++;
             }
+        }
+
+        delete currentAuctions;
+        for (i=0; i<j; i++) {
+            currentAuctions.push(nodes[i]);
         }
 
         return (nodes, auctionAddresses, auctionStartBlocks);
@@ -161,6 +159,16 @@ contract DomainRegistry {
             ownerAddresses[i] = records[registeredDomains[i]].owner;
         }
         return (nodes, ownerAddresses);
+    }
+
+    //if registered, resolved to owner address, if auctioning, resolve to auction address
+    //empty domain returns address(0)
+    function resolveDomain(string memory domain) public view returns (address) {
+        if (records[domain].registered) {
+            return records[domain].owner;
+        } else {
+            return records[domain].auctionAddress;
+        }
     }
 
 
@@ -185,6 +193,11 @@ contract DomainRegistry {
     function viewRegistration(string memory node) public view returns (bool)
     {
         return records[node].registered;
+    }
+
+    event PotentialWinnerFound(address winner, uint highestBid);
+    function emitPotentialWinner(address winner, uint value) public {
+        emit PotentialWinnerFound(winner, value);
     }
 
 

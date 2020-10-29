@@ -1,7 +1,6 @@
 import Web3 from "web3";
 import domainRegistryArtifact from "../../build/contracts/DomainRegistry.json";
 import blindAuctionArtifact from "../../build/contracts/BlindAuction.json";
-import namehash from "eth-ens-namehash";
 
 const PROTOCOL = "http://";
 const HOST = "127.0.0.1";
@@ -14,13 +13,14 @@ class App {
     this._web3 = web3;
     this._account = null;
     this._domainRegistry = null;
+    this._listeners = {};
   }
 
   //returns address of auction
   async startAuction(domain) {
     return this._domainRegistry
       .methods
-      .startAuction(namehash(domain))
+      .startAuction(domain)
       .send({
         from: this._account,
         value: 0,
@@ -30,21 +30,36 @@ class App {
   //returns registered domain: array of string => address
   //address can be used to identify which domain names belong to user
   async getRegisteredDomains() {
-    return this._domainRegistry.methods.getRegisteredDomains().call();
+    const registered = await this._domainRegistry.methods.getRegisteredDomains().call();
+    const domains = registered[0];
+    const addresses = registered[1];
+    return domains.map((_, i) => ({
+      domain: domains[i],
+      address: addresses[i],
+    }));
   }
 
   //returns auctioning domains: array of string => auction state
   //auction state is for display next to name, as well as for ui to know what interactions to display
   async getCurrentAuctions() {
-    return this._domainRegistry.methods.getCurrentAuctions().call();
+    const that = this;
+    const auctions = await this._domainRegistry.methods.getCurrentAuctions().call();
+    const domains = auctions[0];
+    const addresses = auctions[1];
+    const stages = await Promise.all(addresses.map(address => this.getAuctionStage(address)));
+    return domains.map((_, i) => ({
+      domain: domains[i],
+      address: addresses[i],
+      stage: stages[i],
+    }));
   }
 
   //returns accounts: array of {address: string, balance: number}
-  async getAccounts() {
+  async getAccount() {
     const eth = this._web3.eth;
     const accounts = await eth.getAccounts();
-    const balances = Promise.all(accounts.map(eth.getBalance));
-    return accounts.map((acc, index) => ({address: acc, balance: balances[index]}));
+    const balance = (await eth.getBalance(accounts[0]))/1000000000000000000;
+    return { address: accounts[0], balance };
   }
 
   async getAuctionState(domain) {
@@ -55,10 +70,10 @@ class App {
   //sends bid
   async bid(domain, bid) {
     const {value, isFake, secret} = bid;
-    if (this._secret === null) throw new Error("no secret");
-    const hash = this._web3.utils.soliditySha3(value, isFake, secret);
+    if (!secret) throw new Error("no secret");
+    const hash = this._web3.utils.soliditySha3(parseInt(value), isFake, this._web3.utils.asciiToHex(secret));
     const blindAuction = await this._getBlindAuctionFor(domain);
-    await blindAuction
+    return await blindAuction
       .methods
       .bid(hash)
       .send({
@@ -75,9 +90,9 @@ class App {
     const isFakes = [];
     const secrets = [];
     bids.forEach(({value, isFake, secret}) => {
-      values.push(value);
+      values.push(parseInt(value));
       isFakes.push(isFake);
-      secrets.push(secret);
+      secrets.push(this._web3.utils.asciiToHex(secret));
     });
     const blindAuction = await this._getBlindAuctionFor(domain);
     return blindAuction
@@ -128,24 +143,45 @@ class App {
     this._account = address;
   }
 
-  async connectDomainRegistry(address) {
-    this._domainRegistry = await this._getContract(domainRegistryArtifact, address);
+  connectDomainRegistry(address) {
+    this._domainRegistry = this._getContract(domainRegistryArtifact, address);
   }
 
-  async init(web3) {
-    this._account = (await this.getAccounts())[0].address;    //by default set account[0] as the main acc
-    const netId = await this._web3.eth.net.getId();
+  async getAuctionStage(address) {
+    const auction = this._getContract(blindAuctionArtifact, address);
+    return auction.methods.getStage().call();
+  }
+
+  async init() {
+    this._account = (await this.getAccount()).address;    //by default set account[0] as the main acc
+
+    const netId = await this._web3.eth.net.getId();       //connect to domainRegistry
     const network = domainRegistryArtifact.networks[netId];
-    await this.connectDomainRegistry(network.address);
+    this.connectDomainRegistry(network.address);
+
+    this._web3.eth.handleRevert = true;                   //enable revert errors
+
+    //subscribe to Domain Registry events
+    this._domainRegistry.events.allEvents({}, (err, obj) => {
+      const listeners = this._listeners[obj.event];
+      if (err || listeners === undefined) return;
+      listeners.forEach(l => l(obj.returnValues));
+      console.log({ e: obj.event, ...obj.returnValues });
+    });
   }
 
-  async _getContract(artifact, address) {
+  subscribe(event, callback) {
+    if (this._listeners[event] === undefined) this._listeners[event] = [];
+    this._listeners[event].push(callback);
+  }
+
+  _getContract(artifact, address) {
     return new this._web3.eth.Contract(artifact.abi, address);
   }
 
   //returns address of domain
   async _getAddressFor(domain) {
-    //TODO: getAddress given domain to be implemented on DomainRegistry contract
+    return this._domainRegistry.methods.resolveDomain(domain).call();
   }
 
   async _getBlindAuctionFor(domain) {
@@ -160,7 +196,7 @@ function Bid(valueInWei, isFake, secret) {
   this.secret = secret;
 }
 
-async function getApp() {
+async function getApi() {
   let web3;
 
   if (window.ethereum) {
@@ -172,11 +208,11 @@ async function getApp() {
   }
 
   const app = new App(web3);
-  await app.init(web3);
+  await app.init();
   return app;
 }
 
 export {
-  getApp,
+  getApi,
   Bid,
 }
