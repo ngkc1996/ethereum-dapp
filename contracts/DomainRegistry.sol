@@ -35,7 +35,6 @@ contract DomainRegistry {
     // should this event also give the string form of the domain?
     event NewAuctionStarted(string node, address auctionAddress);
     event NewDomainClaimed(string node, address newOwner, uint highestBid);
-    event RecordsUpdate();
 
     // modifiers
     modifier validAuctionContract(string memory node) {
@@ -125,6 +124,7 @@ contract DomainRegistry {
 
     // get current auction addresses and their nodes
     // also checks if the auctions in the list have expired.
+    //TODO: remove start blocks
     function getCurrentAuctions() public returns (string[] memory, address[] memory, uint[] memory) {
         string[] memory nodes = new string[](currentAuctions.length);
         address[] memory auctionAddresses = new address[](currentAuctions.length);
@@ -193,6 +193,11 @@ contract DomainRegistry {
     function viewRegistration(string memory node) public view returns (bool)
     {
         return records[node].registered;
+    }
+
+    event PotentialWinnerFound(address winner, uint highestBid);
+    function emitPotentialWinner(address winner, uint value) public {
+        emit PotentialWinnerFound(winner, value);
     }
 
 

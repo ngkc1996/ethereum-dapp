@@ -25,9 +25,12 @@ contract BlindAuction {
     event PotentialWinnerFound(address winner, uint highestBid);
 
     //modifiers
-    modifier onlyBefore(uint _block) { require(block.number < _block); _; }
+    //godammit kaichin you put the wrong condition at first
+    //modifier onlyBefore(uint _block) { require(block.number < _block); _; }
+    //cus of the above the auction locks up for ONE ENTIRE BLOCK (between bid stage and reveal stage)
+    //TODO: repent
+    modifier onlyBefore(uint _block) { require(block.number <= _block); _; }
     modifier onlyAfter(uint _block) { require(block.number > _block); _; }
-
 
     struct Bid {
         bytes32 blindedBid; //hash(value, fake, secret)
@@ -60,6 +63,7 @@ contract BlindAuction {
     // Reveal blinded bids
     // Refund all except if the bid is currently the highest (potential winner)
     // The submitted values, fakes, secrets must be in the order of the bids
+    // TODO: fix multiple reveal bug - user can call reveal multiple times to get multiple transfers
     function reveal (
         uint[] memory _values,
         bool[] memory _fake,
@@ -75,7 +79,7 @@ contract BlindAuction {
         require(_secret.length == length);
 
         uint refund = 0;
-        
+
         // iterate through all the bids
         for (uint i = 0; i < length; i++) {
             Bid storage bidToCheck = bids[msg.sender][i];
@@ -102,6 +106,7 @@ contract BlindAuction {
     // Withdraw a bid that is the winning bid, 
     // bit was once the highest bid during the reveal stage
     // Qn: should this be just added on to the end of checkIfHighestBid fn?
+    // TODO: combine with checkIfHighestBid
     function withdraw() public  {
         uint amount = pendingReturns[msg.sender];
         if (amount > 0) {
@@ -128,7 +133,17 @@ contract BlindAuction {
         // 'owner' refers to the DomainRegistry that created this auction
         DomainRegistry registry = DomainRegistry(owner);
         registry.registerOwner.value(highestBid)(node, msg.sender, highestBid);
+    }
 
+    function getStage() public view returns (string memory) {
+        //it is one less to inform what the next stage is
+        if (block.number < biddingEnd ) {
+            return "bid";
+        } else if (block.number < revealEnd ) {
+            return "reveal";
+        } else {
+            return "end";
+        }
     }
 
     // This is an "internal" function which means that it
@@ -146,7 +161,11 @@ contract BlindAuction {
         }
         highestBid = value;
         highestBidder = bidder;
+
+        //debug
         emit PotentialWinnerFound(highestBidder, highestBid);
+        DomainRegistry(owner).emitPotentialWinner(highestBidder, highestBid);
+
         return true;
     }
 
