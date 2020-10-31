@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: GPL-3.0
-//pragma solidity ^0.5.16;
 pragma solidity ^0.6.0;
 import './DomainRegistry.sol';
 
@@ -10,8 +9,8 @@ contract BlindAuction {
     string public node;
     uint public biddingEnd;
     uint public revealEnd;
-    uint public biddingDuration = 10; //blocks
-    uint public revealDuration = 10; //blocks
+    uint public biddingDuration = 2; //blocks
+    uint public revealDuration = 2; //blocks
     bool public ended;
     bool public domainClaimed;
     
@@ -23,6 +22,7 @@ contract BlindAuction {
     event WinnerClaimed(address winner, uint highestBid);
     // for debugging
     event PotentialWinnerFound(address winner, uint highestBid);
+    event revealSuccess(address winner, uint highestBid);
 
     //modifiers
     //godammit kaichin you put the wrong condition at first

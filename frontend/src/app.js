@@ -1,6 +1,7 @@
 import Web3 from "web3";
 import domainRegistryArtifact from "../../build/contracts/DomainRegistry.json";
 import blindAuctionArtifact from "../../build/contracts/BlindAuction.json";
+const { ethers } = require("ethers");
 
 const PROTOCOL = "http://";
 const HOST = "127.0.0.1";
@@ -71,7 +72,11 @@ class App {
   async bid(domain, bid) {
     const {value, isFake, secret} = bid;
     if (!secret) throw new Error("no secret");
-    const hash = this._web3.utils.soliditySha3(parseInt(value), isFake, this._web3.utils.asciiToHex(secret));
+    // new hash??
+    //const hash = ethers.utils.solidityKeccak256(['uint', 'bool', 'bytes32'], [parseInt(value), isFake, this._web3.utils.asciiToHex(secret)]);
+    let hash = ethers.utils.solidityKeccak256(['uint', 'bool', 'bytes32'], [parseInt(value), isFake, this._web3.utils.padRight(this._web3.utils.asciiToHex(secret), 64)]);
+
+    //const hash = this._web3.utils.soliditySha3(parseInt(value), isFake, this._web3.utils.asciiToHex(secret));
     const blindAuction = await this._getBlindAuctionFor(domain);
     return await blindAuction
       .methods

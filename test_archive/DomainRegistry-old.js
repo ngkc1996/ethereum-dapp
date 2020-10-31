@@ -1,10 +1,10 @@
-//import Web3 from "web3";
-//const web3 = require("web3");
+
 const { ethers } = require("ethers");
 //let namehash = require('eth-ens-namehash');
 const DomainRegistry = artifacts.require("DomainRegistry");
 const BlindAuction = artifacts.require("BlindAuction");
 const helper = require('../utils/utils.js');
+const { strict } = require("assert");
 
 contract("DomainRegistry", async (accounts) => {
   
@@ -14,8 +14,20 @@ contract("DomainRegistry", async (accounts) => {
     assert.equal(owner, accounts[0]);
   });
   
+  // it("should be able to start an auction", async() => {
+  //   let registry = await DomainRegistry.deployed();
+  //   let hashedaddress = await namehash.hash("xxx.ntu");
+  //   await registry.startAuction(hashedaddress);
+  //   let address = await registry.viewAuctionAddress(hashedaddress);
+    
+  //   let auctionInstance = await BlindAuction.at(address);
+  //   let owner = await auctionInstance.owner();
+  //   assert.equal(owner, await registry.viewThisAddress());
+  // });
 
   it("should be able let users bid in the auction instance, and process the hashing for the blindedbid as expected", async() => {
+    // mirrors "should be able to send a bid, and process the hashing for the blindedbid as expected"
+    // test for BlindAuction.
     let registry = await DomainRegistry.deployed();
     let node = "xxx.ntu";
     // acct1 starts the auction instance for xxx.ntu
@@ -24,17 +36,19 @@ contract("DomainRegistry", async (accounts) => {
     let block_curr = await web3.eth.getBlockNumber();
     console.log("Auction started at block ", block_curr);
     
+    //console.log("And a second one");
+    //await registry.startAuction(node, {from: accounts[1]});
+
+    // trying getCurrentAuctions()
+    console.log(await registry.getCurrentAuctions());
 
     // get the address of the auctionInstance
     let address = await registry.viewAuctionAddress(node);
     let auctionInstance = await BlindAuction.at(address);
     //acct1 puts a bid
-    let hashed = ethers.utils.solidityKeccak256(['uint', 'bool', 'bytes32'], [4, false, web3.utils.padRight(web3.utils.asciiToHex("1234"), 64)]);
-    //const hashed = web3.utils.soliditySha3(parseInt(4), false, web3.utils.padRight(web3.utils.asciiToHex(0x111122223333444455556666777788889999AAAABBBBCCCCDDDDEEEEFFFFCCCC)), 32);
-    
+    let hashed = ethers.utils.solidityKeccak256(['uint', 'bool', 'bytes32'], [4, false, "0x111122223333444455556666777788889999AAAABBBBCCCCDDDDEEEEFFFFCCCC"]);
     await auctionInstance.bid(hashed, {from: accounts[1], value: web3.utils.toWei('4', 'wei')});
-    //let data = await auctionInstance.checkHash([4], [false], ["0x111122223333444455556666777788889999AAAABBBBCCCCDDDDEEEEFFFFCCCC"], {from: accounts[1]});
-    let data = await auctionInstance.checkHash([4], [false], [web3.utils.padRight(web3.utils.asciiToHex("1234"), 64)], {from: accounts[1]});
+    let data = await auctionInstance.checkHash([4], [false], ["0x111122223333444455556666777788889999AAAABBBBCCCCDDDDEEEEFFFFCCCC"], {from: accounts[1]});
     assert.equal(true, data);
   });
 
@@ -55,7 +69,7 @@ contract("DomainRegistry", async (accounts) => {
     let address = await registry.viewAuctionAddress(node);
     let auctionInstance = await BlindAuction.at(address);
     // lower bid reveals first
-    await auctionInstance.reveal([4], [false], [web3.utils.padRight(web3.utils.asciiToHex("1234"), 64)], {from: accounts[1]});
+    await auctionInstance.reveal([4], [false], ["0x111122223333444455556666777788889999AAAABBBBCCCCDDDDEEEEFFFFCCCC"], {from: accounts[1]});
     assert.equal(await auctionInstance.checkHighestBid(), 4);
   });
 
@@ -69,7 +83,7 @@ contract("DomainRegistry", async (accounts) => {
     assert.equal(block_initial + 10, block_final);
   });
 
-  it("should be able to claim reward", async() => {
+  it("should be able to reveal and process refunds properly", async() => {
     // this test must be run after "it should be able to send a bid - has the relevant txs"
     let registry = await DomainRegistry.deployed();
     let node = "xxx.ntu";
@@ -80,15 +94,13 @@ contract("DomainRegistry", async (accounts) => {
 
     await auctionInstance.claimWinnerReward({from: accounts[1]});
     //assert.equal(accounts[1], await registry.viewRecordOwner(node));
-    let registered = await registry.viewRegistration(node);
-    //console.log();
-    assert.equal(true, registered);
+    console.log(await registry.viewRegistration(node));
 
-    // let balance = await web3.eth.getBalance(address);
-    // console.log(balance);
+    let balance = await web3.eth.getBalance(address);
+    console.log(balance);
 
-    // let balance2 = await web3.eth.getBalance(await registry.viewThisAddress());
-    // assert.equal(balance2, 4);
+    let balance2 = await web3.eth.getBalance(await registry.viewThisAddress());
+    assert.equal(balance2, 4);
   });
 
 

@@ -16,6 +16,7 @@
     "webpack-dev-server": "^3.9.0"
   },
   "dependencies": {
+    "ethers": "^5.0.19",
     "web3": "^1.2.4"
   }
 }

@@ -1,5 +1,4 @@
 // SPDX-License-Identifier: GPL-3.0
-// pragma solidity ^0.5.16;
 pragma solidity ^0.6.0;
 // to implement functions that return string[]
 pragma experimental ABIEncoderV2;
@@ -18,7 +17,7 @@ contract DomainRegistry {
     }
 
     //static variables
-    uint durationOfAuction = 50; //if after 50 blocks there is no claimant, the auction is voided
+    uint durationOfAuction = 6; //if after 50 blocks there is no claimant, the auction is voided
     address public owner;
     string[] registeredDomains; // nodes that are registered
     string[] currentAuctions; //stores nodes that have active auctions
@@ -28,11 +27,8 @@ contract DomainRegistry {
 
     //mappings
     mapping(string=>Record) records;
-    // storing strings
-    //mapping()
 
     //events
-    // should this event also give the string form of the domain?
     event NewAuctionStarted(string node, address auctionAddress);
     event NewDomainClaimed(string node, address newOwner, uint highestBid);
 
@@ -86,13 +82,14 @@ contract DomainRegistry {
         records[node].registered = true;
         registeredDomains.push(node);
         // update currentAuctions
-        for (uint i=0; i<currentAuctions.length; i++) {
+        uint i = 0;
+        for (i=0; i<currentAuctions.length; i++) {
             if (keccak256(abi.encodePacked(currentAuctions[i])) == keccak256(abi.encodePacked(node))) {
                 if (currentAuctions.length == 1) {
                     delete currentAuctions[i];
                     break;
                 } else {
-                    currentAuctions[i] = currentAuctions[currentAuctions.length-2];
+                    currentAuctions[i] = currentAuctions[currentAuctions.length-1];
                     delete currentAuctions[currentAuctions.length-1];
                     break;
                 }
@@ -126,6 +123,7 @@ contract DomainRegistry {
     // also checks if the auctions in the list have expired.
     //TODO: remove start blocks
     function getCurrentAuctions() public returns (string[] memory, address[] memory, uint[] memory) {
+        // instantiate arrays
         string[] memory nodes = new string[](currentAuctions.length);
         address[] memory auctionAddresses = new address[](currentAuctions.length);
         uint[] memory auctionStartBlocks = new uint[](currentAuctions.length);
@@ -133,6 +131,7 @@ contract DomainRegistry {
         uint i = 0;
         uint j = 0;
         for (i=0; i<currentAuctions.length; i++) {
+            // check if current auctions are still active
             if (records[currentAuctions[i]].auctionStartBlock + durationOfAuction > block.number) {
                 nodes[j] = currentAuctions[i];
                 auctionAddresses[j] = records[currentAuctions[i]].auctionAddress;
@@ -140,7 +139,7 @@ contract DomainRegistry {
                 j++;
             }
         }
-
+        // replace the existing currentAuctions with an updated one
         delete currentAuctions;
         for (i=0; i<j; i++) {
             currentAuctions.push(nodes[i]);
@@ -150,9 +149,10 @@ contract DomainRegistry {
     }
 
     // gets registered domains and their owner addresses
+    //TODO: currently broken, refer to getCurrentAuctions for reference
     function getRegisteredDomains() public view returns (string[] memory, address[] memory) {
-        string[] memory nodes;
-        address[] memory ownerAddresses;
+        string[] memory nodes = new string[](registeredDomains.length);
+        address[] memory ownerAddresses = new address[](registeredDomains.length);
 
         for (uint i=0; i<registeredDomains.length; i++) {
             nodes[i] = registeredDomains[i];
