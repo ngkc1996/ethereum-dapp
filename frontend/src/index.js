@@ -4,12 +4,18 @@ const auctionStage = {
   BID: "bid",
   REVEAL: "reveal",
   END: "end"
-}
+};
 
-let auctionsListingDiv, newAuctionDiv, moreBodyDiv, accountInfoDiv;
+let auctionsListingDiv, newAuctionDiv, moreBodyDiv, registeredDomainsListing, accountInfoDiv;
 let api;
 
-let auctionsMap = {};
+let auctionsMap = {
+  // "fakeAuction": {
+  //   domain: "fakeAuction",
+  //   address: "0x0000",
+  //   stage: "reveal",
+  // }
+};
 let registeredDomainsMap = {};
 let account = null;
 let selectedAuction = {};
@@ -21,21 +27,22 @@ async function load() {
   auctionsListingDiv = document.getElementById("auctions__listing");
   newAuctionDiv = document.getElementById("new_auction");
   moreBodyDiv = document.getElementById("more__body");
+  registeredDomainsListing = document.getElementById("registered__listing");
   accountInfoDiv = document.getElementById("account__info");
 
   //get api
   api = await app.getApi();
 
   document.getElementById("auctions__refresh").onclick = fetchAuctionsListing;
+  document.getElementById("registered__button").onclick = fetchRegisteredDomains;
   document.getElementById("new_auction__button").onclick = startNewAuction;
   document.getElementById("transaction__send").onclick = sendEther;
 
   //renders + state changes
   await fetchAuctionsListing();
+  // renderAuctionsListing();
+  await fetchRegisteredDomains();
   await renderAccount();
-
-  //perform state changes
-  await getRegisteredDomains()
 
   //set event subscriptions
   api.subscribe("NewAuctionStarted", ({ auctionAddress, node }) => {
@@ -43,14 +50,19 @@ async function load() {
       domain: node,
       address: auctionAddress,
       stage: auctionStage.BID,
-    }
+    };
     renderAuctionsListing();
   });
   api.subscribe("NewDomainClaimed", ({ newOwner, node }) => {
     registeredDomainsMap[node] = {
       domain: node,
       address: newOwner,
-    }
+    };
+    renderRegisteredDomains();
+  });
+  api.subscribe("AuctionExpired", ({ node }) => {
+    delete auctionsMap[node];
+    renderAuctionsListing();
   })
 }
 
@@ -112,19 +124,9 @@ function renderMore({ domain, address, stage }) {
   f.appendChild(h4);
   let b;
   switch (stage) {
-    case auctionStage.BID: case auctionStage.REVEAL:
-      const li = label("Amount (wei): ");
-      const i = input("number");
-      i.value = 0;
-      const lc = label("Fake Bid: ");
-      const c = input("checkbox");
-      const ls = label("Secret: ");
-      const s = input("text");
-      b = button({
-        [auctionStage.BID]: "Bid",
-        [auctionStage.REVEAL]: "Reveal",
-        }[stage],
-        async () => {
+    case auctionStage.BID:
+      const { i, c, s, e } = bidMenu();
+      b = button("Bid", async () => {
         if (i.value <= 0) {
           alert("bid must be greater than 0");
           return;
@@ -133,36 +135,47 @@ function renderMore({ domain, address, stage }) {
           return
         }
         try {
-          const bid = new app.Bid(
-            i.value,
-            c.checked,
-            s.value,
-          )
-          if (auctionStage.BID === stage) {
-            await api.bid(domain, bid);
-          } else if (auctionStage.REVEAL === stage) {
-            await api.reveal(domain, [bid]);
-          }
+          await api.bid(domain, new app.Bid(i.value, c.checked, s.value));
         } catch (e) {
           //if there is an issue, it is likely the stage is off (therefore update stage)
-          const newStage = await api.getAuctionStage(auctionsMap[domain].address)
-          alert(`cannot ${stage}`);
-          auctionsMap[domain].stage = newStage;
+          auctionsMap[domain].stage = await api.getAuctionStage(auctionsMap[domain].address);
+          alert("cannot bid");
           renderAuctionsListing();
+          console.log(e);
         }
       });
-      const di = element("div");
-      const dc = element("div");
-      const ds = element("div");
-      di.appendChild(li);
-      di.appendChild(i);
-      dc.appendChild(lc);
-      dc.appendChild(c);
-      ds.appendChild(ls);
-      ds.appendChild(s);
-      f.appendChild(di);
-      f.appendChild(dc);
-      f.appendChild(ds);
+      f.appendChild(e);
+      f.appendChild(b);
+      break;
+    case auctionStage.REVEAL:
+      const d = element("div");
+      const t = divWithText("Note: Be sure to include ALL your bids in a single reveal.");
+      const menus = [];
+      const menu = bidMenu();
+      menu.e.classList.add("bid_menu");
+      menus.push(menu);
+      const buttonAdd = button("Add Another Bid", () => {
+        const menu = bidMenu();
+        menus.push(menu);
+        menu.e.classList.add("bid_menu");
+        d.appendChild(menu.e);
+      });
+      b = button("Reveal", async () => {
+        const bids = menus.map(({ i, c, s }) => new app.Bid(i.value, c.checked, s.value));
+        try {
+          await api.reveal(domain, bids);
+        } catch (e) {
+          //if there is an issue, it is likely the stage is off (therefore update stage)
+          auctionsMap[domain].stage = await api.getAuctionStage(auctionsMap[domain].address);
+          alert("cannot reveal");
+          renderAuctionsListing();
+          console.log(e);
+        }
+      });
+      d.appendChild(menu.e);
+      f.appendChild(t);
+      f.appendChild(d);
+      f.appendChild(buttonAdd);
       f.appendChild(b);
       break;
     case auctionStage.END:
@@ -172,7 +185,7 @@ function renderMore({ domain, address, stage }) {
         } catch (e) {
           alert("failed to claim")
         }
-      })
+      });
       f.appendChild(b);
       break;
     default:
@@ -184,7 +197,7 @@ function renderAuctionsListing() {
   auctionsListingDiv.innerHTML = "";
 
   const f = fragment();
-  const auctions = Object.values(auctionsMap)
+  const auctions = Object.values(auctionsMap);
 
   if (auctions.length) {
     auctions.forEach(auction => {
@@ -196,15 +209,34 @@ function renderAuctionsListing() {
       f.appendChild(d);
     });
   } else {
-    auctionsListingDiv.appendChild(divWithText("No auctions currently"))
+    auctionsListingDiv.appendChild(divWithText("No auctions currently"));
   }
   auctionsListingDiv.appendChild(f);
 
   if (selectedAuction.domain) renderMore(auctionsMap[selectedAuction.domain]);
 }
 
-async function renderRegisteredDomains() {
-  //TODO: implement renderRegisteredDomains
+function renderRegisteredDomains() {
+  registeredDomainsListing.innerHTML = "";
+
+  const f = fragment();
+  const registered = Object.values(registeredDomainsMap);
+
+  if (registered.length) {
+    registered.forEach(({ domain, address }) => {
+      const d = element("div");
+      d.appendChild(divWithText("Domain: " + domain));
+      d.appendChild(divWithText("Address: " + address));
+      d.onclick = () => {
+        document.getElementById("transaction__domain").value = domain;
+        document.getElementById("transaction__amount").value = 0;
+      }
+      f.appendChild(d);
+    })
+  } else {
+    registeredDomainsListing.appendChild(divWithText("No registered domains currently"));
+  }
+  registeredDomainsListing.appendChild(f)
 }
 
 async function renderAccount() {
@@ -222,9 +254,15 @@ async function renderAccount() {
 }
 
 //state changes
-async function getRegisteredDomains() {
-  const domains = await api.getRegisteredDomains();
-  console.log(domains);
+async function fetchRegisteredDomains() {
+  try {
+    const registered = await api.getRegisteredDomains();
+    registered.forEach(register => registeredDomainsMap[register.domain] = register);
+    renderRegisteredDomains();
+  } catch (e) {
+    alert("cannot fetch registered domains");
+    console.log(e);
+  }
 }
 
 async function fetchAuctionsListing() {
@@ -244,6 +282,29 @@ function divWithText(text) {
   const d = element("div");
   d.innerText = text;
   return d;
+}
+
+function bidMenu() {
+  const e = element("div");
+  const { i, e: ei } = labelInputPair("Amount (Wei): ", "number", 0);
+  const { i: c, e: ec } = labelInputPair("Fake Bid: ", "checkbox");
+  const { i: s, e: es } = labelInputPair("Secret: ", "text");
+  e.appendChild(ei);
+  e.appendChild(ec);
+  e.appendChild(es);
+  return { i, c, s, e }
+}
+
+function labelInputPair(label, inputType, defaultValue) {
+  const e = element("div");
+  const l = element("label");
+  l.innerText = label;
+  const i = element("input");
+  i.type = inputType;
+  if (defaultValue !== undefined) i.value = defaultValue;
+  e.appendChild(l);
+  e.appendChild(i);
+  return { l, i, e };
 }
 
 function label(text) {

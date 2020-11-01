@@ -119,33 +119,37 @@ contract DomainRegistry {
     //website functions
     //I think these functions are very inefficient, maybe can redo
 
-    // get current auction addresses and their nodes
-    // also checks if the auctions in the list have expired.
-    //TODO: remove start blocks
-    function getCurrentAuctions() public returns (string[] memory, address[] memory, uint[] memory) {
-        // instantiate arrays
-        string[] memory nodes = new string[](currentAuctions.length);
-        address[] memory auctionAddresses = new address[](currentAuctions.length);
-        uint[] memory auctionStartBlocks = new uint[](currentAuctions.length);
+    //update the current auctions
+    function updateCurrentAuctions() public {
+        string[] memory keep = new string[](currentAuctions.length);
 
-        uint i = 0;
+        uint i;
         uint j = 0;
-        for (i=0; i<currentAuctions.length; i++) {
-            // check if current auctions are still active
+        for (i = 0; i < currentAuctions.length; i++) {
             if (records[currentAuctions[i]].auctionStartBlock + durationOfAuction > block.number) {
-                nodes[j] = currentAuctions[i];
-                auctionAddresses[j] = records[currentAuctions[i]].auctionAddress;
-                auctionStartBlocks[j] = records[currentAuctions[i]].auctionStartBlock;
+                keep[j] = currentAuctions[i];
                 j++;
             }
         }
-        // replace the existing currentAuctions with an updated one
+
         delete currentAuctions;
-        for (i=0; i<j; i++) {
-            currentAuctions.push(nodes[i]);
+        for (i = 0; i < j; i++) {
+            currentAuctions.push(keep[i]);
+        }
+    }
+
+    // get current auction addresses and their nodes
+    // also checks if the auctions in the list have expired.
+    function getCurrentAuctions() public view returns (string[] memory, address[] memory) {
+        string[] memory nodes = new string[](currentAuctions.length);
+        address[] memory auctionAddresses = new address[](currentAuctions.length);
+
+        for (uint i = 0; i < currentAuctions.length; i++) {
+            nodes[i] = currentAuctions[i];
+            auctionAddresses[i] = records[currentAuctions[i]].auctionAddress;
         }
 
-        return (nodes, auctionAddresses, auctionStartBlocks);
+        return (nodes, auctionAddresses);
     }
 
     // gets registered domains and their owner addresses
