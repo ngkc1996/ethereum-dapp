@@ -230,7 +230,7 @@ function renderRegisteredDomains() {
       d.onclick = () => {
         document.getElementById("transaction__domain").value = domain;
         document.getElementById("transaction__amount").value = 0;
-      }
+      };
       f.appendChild(d);
     })
   } else {
