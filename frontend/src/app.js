@@ -69,7 +69,7 @@ class App {
   }
 
   async getAuctionState(domain) {
-    const address = await this._getAddressFor(domain);
+    const address = await this.resolveDomain(domain);
     //TODO: remove
   }
 
@@ -137,7 +137,7 @@ class App {
   }
 
   async sendEther(domain, valueInWei) {
-    const address = await this._getAddressFor(domain);
+    const address = await this.resolveDomain(domain);
     this._web3.eth.sendTransaction({
       from: this._account,
       to: address,
@@ -153,9 +153,19 @@ class App {
     this._domainRegistry = this._getContract(domainRegistryArtifact, address);
   }
 
+  //for direct communication
   async getAuctionStage(address) {
     const auction = this._getContract(blindAuctionArtifact, address);
     return auction.methods.getStage().call();
+  }
+
+  async queryDomain(domain) {
+    return this._domainRegistry.methods.getStage(domain).call();
+  }
+
+  //returns address of domain
+  async resolveDomain(domain) {
+    return this._domainRegistry.methods.resolveDomain(domain).call();
   }
 
   async init() {
@@ -185,13 +195,8 @@ class App {
     return new this._web3.eth.Contract(artifact.abi, address);
   }
 
-  //returns address of domain
-  async _getAddressFor(domain) {
-    return this._domainRegistry.methods.resolveDomain(domain).call();
-  }
-
   async _getBlindAuctionFor(domain) {
-    const address = await this._getAddressFor(domain);
+    const address = await this.resolveDomain(domain);
     return this._getContract(blindAuctionArtifact, address);
   }
 }

@@ -59,10 +59,13 @@
   </div>
 
   <div class="card">
-    <div id="auctions">
-      <h3>Ongoing Auctions</h3>
-      <button id="auctions__refresh">Refresh</button>
-      <div id="auctions__listing" class="listing"></div>
+    <div id="domain">
+      <h3>Domain Queries</h3>
+      <div id="domain_query">
+        <input id="domain_query__input"/>
+        <button id="domain_query__button">Query</button>
+      </div>
+      <div id="domain__queries" class="listing"></div>
     </div>
     <hr/>
     <div id="new_auction">
@@ -76,12 +79,6 @@
       <h3>Auction Controls</h3>
       <div id="more__body">No Auction Selected</div>
     </div>
-  </div>
-
-  <div id="registered" class="card">
-    <h3>Registered Domains</h3>
-    <button id="registered__button">Refresh</button>
-    <div id="registered__listing" class="listing"></div>
   </div>
 
   <div id="transaction" class="card">

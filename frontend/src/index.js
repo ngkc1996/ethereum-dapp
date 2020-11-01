@@ -1,15 +1,17 @@
 const app = require("./app");
 
 const auctionStage = {
-  BID: "bid",
-  REVEAL: "reveal",
-  END: "end"
+  BID: "bidding",
+  REVEAL: "revealing",
+  CLAIM: "claiming",
+  CLAIMED: "claimed",
+  UNCLAIMED: "unclaimed",
 };
 
-let auctionsListingDiv, newAuctionDiv, moreBodyDiv, registeredDomainsListing, accountInfoDiv;
+let domainQueriesDiv, newAuctionDiv, moreBodyDiv, accountInfoDiv;
 let api;
 
-let auctionsMap = {
+let domainsMap = {
   // "fakeAuction": {
   //   domain: "fakeAuction",
   //   address: "0x0000",
@@ -24,46 +26,46 @@ window.addEventListener("load", load);
 
 async function load() {
   //get elements
-  auctionsListingDiv = document.getElementById("auctions__listing");
+  domainQueriesDiv = document.getElementById("domain__queries");
   newAuctionDiv = document.getElementById("new_auction");
   moreBodyDiv = document.getElementById("more__body");
-  registeredDomainsListing = document.getElementById("registered__listing");
   accountInfoDiv = document.getElementById("account__info");
 
   //get api
   api = await app.getApi();
 
-  document.getElementById("auctions__refresh").onclick = fetchAuctionsListing;
-  document.getElementById("registered__button").onclick = fetchRegisteredDomains;
+  document.getElementById("domain_query__button").onclick = queryDomain;
   document.getElementById("new_auction__button").onclick = startNewAuction;
   document.getElementById("transaction__send").onclick = sendEther;
 
   //renders + state changes
-  await fetchAuctionsListing();
-  // renderAuctionsListing();
-  await fetchRegisteredDomains();
   await renderAccount();
 
   //set event subscriptions
   api.subscribe("NewAuctionStarted", ({ auctionAddress, node }) => {
-    auctionsMap[node] = {
+    domainsMap[node] = {
       domain: node,
       address: auctionAddress,
       stage: auctionStage.BID,
     };
-    renderAuctionsListing();
+    renderDomainQueries();
   });
   api.subscribe("NewDomainClaimed", ({ newOwner, node }) => {
     registeredDomainsMap[node] = {
       domain: node,
       address: newOwner,
     };
-    renderRegisteredDomains();
+    renderDomainQueries();
   });
-  api.subscribe("AuctionExpired", ({ node }) => {
-    delete auctionsMap[node];
-    renderAuctionsListing();
-  })
+}
+
+//query domain
+async function queryDomain() {
+  //TODO: implement query
+  const domain = document.getElementById("domain_query__input").value;
+  const [stage, address] = await Promise.all([api.queryDomain(domain), api.resolveDomain(domain)]);
+  domainsMap[domain] = { domain, address, stage };
+  renderDomainQueries();
 }
 
 //button functions
@@ -71,7 +73,7 @@ async function startNewAuction() {
   const domain = document.getElementById("new_auction__domain").value;
 
   //check if domain is being auctioned
-  if (auctionsMap[domain]) {
+  if (domainsMap[domain]) {
     alert("domain already being auctioned");
     return;
   } else if (domain === "") {
@@ -108,7 +110,7 @@ async function sendEther() {
 //render functions
 function renderMore({ domain, address, stage }) {
   if (
-    selectedAuction.address === address
+    selectedAuction.domain === domain
     && selectedAuction.stage === stage
   ) return;
   selectedAuction = { domain, address, stage };
@@ -138,15 +140,16 @@ function renderMore({ domain, address, stage }) {
           await api.bid(domain, new app.Bid(i.value, c.checked, s.value));
         } catch (e) {
           //if there is an issue, it is likely the stage is off (therefore update stage)
-          auctionsMap[domain].stage = await api.getAuctionStage(auctionsMap[domain].address);
+          domainsMap[domain].stage = await api.getAuctionStage(domainsMap[domain].address);
           alert("cannot bid");
-          renderAuctionsListing();
+          renderDomainQueries();
           console.log(e);
         }
       });
       f.appendChild(e);
       f.appendChild(b);
       break;
+
     case auctionStage.REVEAL:
       const d = element("div");
       const t = divWithText("Note: Be sure to include ALL your bids in a single reveal.");
@@ -166,9 +169,9 @@ function renderMore({ domain, address, stage }) {
           await api.reveal(domain, bids);
         } catch (e) {
           //if there is an issue, it is likely the stage is off (therefore update stage)
-          auctionsMap[domain].stage = await api.getAuctionStage(auctionsMap[domain].address);
+          domainsMap[domain].stage = await api.getAuctionStage(domainsMap[domain].address);
           alert("cannot reveal");
-          renderAuctionsListing();
+          renderDomainQueries();
           console.log(e);
         }
       });
@@ -178,7 +181,8 @@ function renderMore({ domain, address, stage }) {
       f.appendChild(buttonAdd);
       f.appendChild(b);
       break;
-    case auctionStage.END:
+
+    case auctionStage.CLAIM:
       b = button("Try Claim", async () => {
         try {
           await api.claim(domain);
@@ -193,11 +197,11 @@ function renderMore({ domain, address, stage }) {
   moreBodyDiv.appendChild(f);
 }
 
-function renderAuctionsListing() {
-  auctionsListingDiv.innerHTML = "";
+function renderDomainQueries() {
+  domainQueriesDiv.innerHTML = "";
 
   const f = fragment();
-  const auctions = Object.values(auctionsMap);
+  const auctions = Object.values(domainsMap);
 
   if (auctions.length) {
     auctions.forEach(auction => {
@@ -205,38 +209,27 @@ function renderAuctionsListing() {
       d.appendChild(divWithText("Domain: " + auction.domain));
       d.appendChild(divWithText("Address: " + auction.address));
       d.appendChild(divWithText("Stage: " + auction.stage));
-      d.onclick = () => renderMore(auction);
+      d.onclick = () => {
+        switch (auction.stage) {
+          case auctionStage.CLAIMED:
+            document.getElementById("transaction__domain").value = auction.domain;
+            document.getElementById("transaction__amount").value = 0;
+            break;
+          case auctionStage.UNCLAIMED:
+            document.getElementById("new_auction__domain").value = auction.domain;
+          default:
+            renderMore(auction);
+        }
+      }
       f.appendChild(d);
     });
   } else {
-    auctionsListingDiv.appendChild(divWithText("No auctions currently"));
+    domainQueriesDiv.appendChild(divWithText("No auctions currently"));
   }
-  auctionsListingDiv.appendChild(f);
+  domainQueriesDiv.appendChild(f);
 
-  if (selectedAuction.domain) renderMore(auctionsMap[selectedAuction.domain]);
-}
-
-function renderRegisteredDomains() {
-  registeredDomainsListing.innerHTML = "";
-
-  const f = fragment();
-  const registered = Object.values(registeredDomainsMap);
-
-  if (registered.length) {
-    registered.forEach(({ domain, address }) => {
-      const d = element("div");
-      d.appendChild(divWithText("Domain: " + domain));
-      d.appendChild(divWithText("Address: " + address));
-      d.onclick = () => {
-        document.getElementById("transaction__domain").value = domain;
-        document.getElementById("transaction__amount").value = 0;
-      };
-      f.appendChild(d);
-    })
-  } else {
-    registeredDomainsListing.appendChild(divWithText("No registered domains currently"));
-  }
-  registeredDomainsListing.appendChild(f)
+  //to update the 'more' div if there are changes
+  if (selectedAuction.domain) renderMore(domainsMap[selectedAuction.domain]);
 }
 
 async function renderAccount() {
@@ -250,30 +243,6 @@ async function renderAccount() {
     accountInfoDiv.appendChild(divWithText("Balance: " + balance + " ETH"));
   } catch (e) {
     alert(e);
-  }
-}
-
-//state changes
-async function fetchRegisteredDomains() {
-  try {
-    const registered = await api.getRegisteredDomains();
-    registered.forEach(register => registeredDomainsMap[register.domain] = register);
-    renderRegisteredDomains();
-  } catch (e) {
-    alert("cannot fetch registered domains");
-    console.log(e);
-  }
-}
-
-async function fetchAuctionsListing() {
-  try {
-    const auctions = await api.getCurrentAuctions();
-    auctionsMap = {};
-    auctions.forEach(auction => auctionsMap[auction.domain] = auction);
-    renderAuctionsListing();
-  } catch (e) {
-    alert("cannot fetch auctions");
-    console.log(e);
   }
 }
 
