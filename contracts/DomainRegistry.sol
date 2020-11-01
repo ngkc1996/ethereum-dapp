@@ -157,9 +157,16 @@ contract DomainRegistry {
         view 
         returns (string memory) 
     {    
-        BlindAuction auction = BlindAuction(records[node].auctionAddress);
-        string memory stage = auction.getStage();
-        return stage;
+        if (records[node].registered == true) {
+            return "claimed";
+        } else if (records[node].hasAuctionBefore == false) {
+            return "unclaimed";
+        } else {
+            BlindAuction auction = BlindAuction(records[node].auctionAddress);
+            string memory stage = auction.getStage();
+            return stage;
+        }
+        
     }
 
     //if registered, resolved to owner address, if auctioning, resolve to auction address
