@@ -16,9 +16,13 @@ let domainsMap = {
   //   domain: "fakeAuction",
   //   address: "0x0000",
   //   stage: "reveal",
-  // }
+  // },
+  // "fakeAuction2": {
+  //   domain: "fakeAuction2",
+  //   address: "0x0000",
+  //   stage: "reveal",
+  // },
 };
-let registeredDomainsMap = {};
 let account = null;
 let selectedAuction = {};
 
@@ -40,21 +44,25 @@ async function load() {
 
   //renders + state changes
   await renderAccount();
+  renderDomainQueries();
 
   //set event subscriptions
-  api.subscribe("NewAuctionStarted", ({ auctionAddress, node }) => {
+  api.subscribe("NewDomainClaimed", ({ newOwner, node }) => {
+    if (newOwner === account.address) {
+      alert(`domain "${node}" successfully claimed`)
+    }
     domainsMap[node] = {
       domain: node,
-      address: auctionAddress,
-      stage: auctionStage.BID,
+      address: newOwner,
+      stage: auctionStage.CLAIMED,
     };
     renderDomainQueries();
   });
-  api.subscribe("NewDomainClaimed", ({ newOwner, node }) => {
-    registeredDomainsMap[node] = {
-      domain: node,
-      address: newOwner,
-    };
+  api.subscribe("NewAuctionStarted", ({ node, auctionAddress }) => {
+    if (domainsMap[node]) {
+      domainsMap[node].stage = auctionStage.BID;
+      domainsMap[node].address = auctionAddress;
+    }
     renderDomainQueries();
   });
 }
@@ -73,16 +81,26 @@ async function startNewAuction() {
   const domain = document.getElementById("new_auction__domain").value;
 
   //check if domain is being auctioned
-  if (domainsMap[domain]) {
-    alert("domain already being auctioned");
+  if (domainsMap[domain] && domainsMap[domain].stage !== auctionStage.UNCLAIMED) {
+    alert("domain no longer available for auction");
     return;
   } else if (domain === "") {
     alert("domain cannot be empty string");
     return;
+  } else {
+    const stage = await api.queryDomain(domain);
+    if (stage !== auctionStage.UNCLAIMED) {
+      alert("domain no longer available for auction");
+      const address = await api.resolveDomain(domain);
+      domainsMap[domain] = { domain, address, stage };
+      renderDomainQueries();
+      return;
+    }
   }
 
   try {
     await api.startAuction(domain);
+    alert(`auction for "${domain}" started`);
   } catch (e) {
     alert("cannot start auction")
   }
@@ -92,18 +110,29 @@ async function sendEther() {
   const domain = document.getElementById("transaction__domain").value;
   const valueInWei = document.getElementById("transaction__amount").value;
 
-  if (registeredDomainsMap[domain] === undefined) {
+  if (domainsMap[domain]) {
+    if (domainsMap[domain] !== auctionStage.CLAIMED)
     alert("domain not registered, cannot send ether");
     return;
   } else if (parseInt(valueInWei) <= 0) {
     alert("ether must be > 0");
     return;
+  } else {
+    const stage = await api.queryDomain(domain);
+    if (stage !== auctionStage.CLAIMED) {
+      alert("domain not registered, cannot send ether");
+      const address = await api.resolveDomain(domain);
+      domainsMap[domain] = {domain, address, stage};
+      renderDomainQueries();
+      return;
+    }
   }
 
   try {
     await api.sendEther(domain, valueInWei);
+    alert(`${valueInWei} Wei transferred to "{domain}"`)
   } catch (e) {
-    alert(e)
+    alert(`could not transfer to ${domain}`);
   }
 }
 
@@ -125,8 +154,10 @@ function renderMore({ domain, address, stage }) {
   f.appendChild(h3);
   f.appendChild(h4);
   let b;
+  let t;
   switch (stage) {
     case auctionStage.BID:
+      t = divWithText("Note: Be sure to remember your bid details, they are required in the reveal stage.")
       const { i, c, s, e } = bidMenu();
       b = button("Bid", async () => {
         if (i.value <= 0) {
@@ -138,6 +169,7 @@ function renderMore({ domain, address, stage }) {
         }
         try {
           await api.bid(domain, new app.Bid(i.value, c.checked, s.value));
+          alert("successfully submitted bid")
         } catch (e) {
           //if there is an issue, it is likely the stage is off (therefore update stage)
           domainsMap[domain].stage = await api.getAuctionStage(domainsMap[domain].address);
@@ -152,7 +184,7 @@ function renderMore({ domain, address, stage }) {
 
     case auctionStage.REVEAL:
       const d = element("div");
-      const t = divWithText("Note: Be sure to include ALL your bids in a single reveal.");
+      t = divWithText("Note: Be sure to include ALL your bids in a single reveal.");
       const menus = [];
       const menu = bidMenu();
       menu.e.classList.add("bid_menu");
@@ -167,10 +199,11 @@ function renderMore({ domain, address, stage }) {
         const bids = menus.map(({ i, c, s }) => new app.Bid(i.value, c.checked, s.value));
         try {
           await api.reveal(domain, bids);
+          alert("successfully revealed bids")
         } catch (e) {
           //if there is an issue, it is likely the stage is off (therefore update stage)
           domainsMap[domain].stage = await api.getAuctionStage(domainsMap[domain].address);
-          alert("cannot reveal");
+          alert("cannot reveal bids");
           renderDomainQueries();
           console.log(e);
         }
@@ -192,7 +225,9 @@ function renderMore({ domain, address, stage }) {
       });
       f.appendChild(b);
       break;
+
     default:
+      f.appendChild(divWithText("No available actions"))
   }
   moreBodyDiv.appendChild(f);
 }
@@ -210,6 +245,7 @@ function renderDomainQueries() {
       d.appendChild(divWithText("Address: " + auction.address));
       d.appendChild(divWithText("Stage: " + auction.stage));
       d.onclick = () => {
+        document.getElementById("domain_query__input").value = auction.domain;
         switch (auction.stage) {
           case auctionStage.CLAIMED:
             document.getElementById("transaction__domain").value = auction.domain;
@@ -217,14 +253,14 @@ function renderDomainQueries() {
             break;
           case auctionStage.UNCLAIMED:
             document.getElementById("new_auction__domain").value = auction.domain;
-          default:
-            renderMore(auction);
+            break;
         }
+        renderMore(auction);
       }
       f.appendChild(d);
     });
   } else {
-    domainQueriesDiv.appendChild(divWithText("No auctions currently"));
+    domainQueriesDiv.appendChild(divWithText("No queries made"));
   }
   domainQueriesDiv.appendChild(f);
 
@@ -274,18 +310,6 @@ function labelInputPair(label, inputType, defaultValue) {
   e.appendChild(l);
   e.appendChild(i);
   return { l, i, e };
-}
-
-function label(text) {
-  const l = element("label");
-  l.innerText = text;
-  return l;
-}
-
-function input(type) {
-  const i = element("input")
-  i.type = type;
-  return i;
 }
 
 function button(text, callback = () => {}) {

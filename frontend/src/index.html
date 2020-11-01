@@ -17,14 +17,21 @@
       border-radius: 5px;
     }
 
-    .listing {
+    .listing__wrapper {
       height: 400px;
       overflow-y: auto;
       overflow-x: hidden;
     }
 
+    .listing {
+      display: flex;
+      flex-direction: column-reverse;
+    }
+
     .listing > div {
-      border: 1px solid black;
+      padding: 5px;
+      margin: 3px 0;
+      border-radius: 5px;
       background-color: #DDDDDD;
     }
 
@@ -38,6 +45,10 @@
 
     .bid_menu {
       margin: 25px 0;
+    }
+
+    #transaction > div {
+      margin: 5px 0;
     }
 
     button {
@@ -65,7 +76,9 @@
         <input id="domain_query__input"/>
         <button id="domain_query__button">Query</button>
       </div>
-      <div id="domain__queries" class="listing"></div>
+      <div class="listing__wrapper">
+        <div id="domain__queries" class="listing"></div>
+      </div>
     </div>
     <hr/>
     <div id="new_auction">
@@ -76,8 +89,8 @@
     </div>
     <hr/>
     <div id="more">
-      <h3>Auction Controls</h3>
-      <div id="more__body">No Auction Selected</div>
+      <h3>Auction Actions</h3>
+      <div id="more__body">No auction selected</div>
     </div>
   </div>
 
