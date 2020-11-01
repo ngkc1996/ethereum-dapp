@@ -42,8 +42,13 @@ class App {
 
   //returns auctioning domains: array of string => auction state
   //auction state is for display next to name, as well as for ui to know what interactions to display
-  async getCurrentAuctions() {
-    const that = this;
+  async getCurrentAuctions(update = true) {
+    if (update) {
+      await this._domainRegistry.methods.updateCurrentAuctions().send({
+        from: this._account,
+        value: 0,
+      });
+    }
     const auctions = await this._domainRegistry.methods.getCurrentAuctions().call();
     const domains = auctions[0];
     const addresses = auctions[1];
@@ -72,11 +77,7 @@ class App {
   async bid(domain, bid) {
     const {value, isFake, secret} = bid;
     if (!secret) throw new Error("no secret");
-    // new hash??
-    //const hash = ethers.utils.solidityKeccak256(['uint', 'bool', 'bytes32'], [parseInt(value), isFake, this._web3.utils.asciiToHex(secret)]);
     let hash = ethers.utils.solidityKeccak256(['uint', 'bool', 'bytes32'], [parseInt(value), isFake, this._web3.utils.padRight(this._web3.utils.asciiToHex(secret), 64)]);
-
-    //const hash = this._web3.utils.soliditySha3(parseInt(value), isFake, this._web3.utils.asciiToHex(secret));
     const blindAuction = await this._getBlindAuctionFor(domain);
     return await blindAuction
       .methods
