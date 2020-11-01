@@ -17,10 +17,10 @@ contract DomainRegistry {
     }
 
     //static variables
-    uint durationOfAuction = 6; //if after 50 blocks there is no claimant, the auction is voided
+    //uint durationOfAuction = 6; //if after this duration there is no claimant, the auction is voided
     address public owner;
-    string[] registeredDomains; // nodes that are registered
-    string[] currentAuctions; //stores nodes that have active auctions
+    //string[] registeredDomains; // nodes that are registered
+    //string[] currentAuctions; //stores nodes that have active auctions
 
 
     // add list of current auctions
@@ -36,8 +36,6 @@ contract DomainRegistry {
     modifier validAuctionContract(string memory node) {
         //the auction contract for that node sent the msg
         require(records[node].auctionAddress == msg.sender);
-        // the auction has not "ended" yet, still valid period for claiming domain
-        require(records[node].auctionStartBlock + durationOfAuction > block.number);
         _;
     }
 
@@ -50,7 +48,9 @@ contract DomainRegistry {
     modifier noOngoingAuction(string memory node) {
         //the last auction (if any) has ended, and a reasonable amount of time has been given to claim domain
         if (records[node].hasAuctionBefore == true) {
-            require(records[node].auctionStartBlock + durationOfAuction < block.number);
+            BlindAuction auction = BlindAuction(records[node].auctionAddress);
+            string memory stage = auction.getStage();
+            require(keccak256(abi.encodePacked(stage)) == keccak256(abi.encodePacked("unclaimed")));
         }
         _;
     }
@@ -80,23 +80,7 @@ contract DomainRegistry {
     {
         records[node].owner = newOwner;
         records[node].registered = true;
-        registeredDomains.push(node);
-        // update currentAuctions
-        uint i = 0;
-        for (i=0; i<currentAuctions.length; i++) {
-            if (keccak256(abi.encodePacked(currentAuctions[i])) == keccak256(abi.encodePacked(node))) {
-                if (currentAuctions.length == 1) {
-                    delete currentAuctions[i];
-                    break;
-                } else {
-                    currentAuctions[i] = currentAuctions[currentAuctions.length-1];
-                    delete currentAuctions[currentAuctions.length-1];
-                    break;
-                }
-                
-            }
-        }
-
+        //registeredDomains.push(node);
         emit NewDomainClaimed(node, newOwner, highestBid);
     }
 
@@ -109,7 +93,7 @@ contract DomainRegistry {
         records[node].auctionAddress = address(new BlindAuction(node));
         records[node].auctionStartBlock = block.number;
         records[node].hasAuctionBefore = true;
-        currentAuctions.push(node);
+        //currentAuctions.push(node);
         emit NewAuctionStarted(node, records[node].auctionAddress);
 
         return records[node].auctionAddress;
@@ -120,54 +104,71 @@ contract DomainRegistry {
     //I think these functions are very inefficient, maybe can redo
 
     //update the current auctions
-    function updateCurrentAuctions() public {
-        string[] memory keep = new string[](currentAuctions.length);
+    // function updateCurrentAuctions() public {
+    //     string[] memory keep = new string[](currentAuctions.length);
 
-        uint i;
-        uint j = 0;
-        for (i = 0; i < currentAuctions.length; i++) {
-            if (records[currentAuctions[i]].auctionStartBlock + durationOfAuction > block.number) {
-                keep[j] = currentAuctions[i];
-                j++;
-            }
-        }
+    //     uint i;
+    //     uint j = 0;
+    //     for (i = 0; i < currentAuctions.length; i++) {
+    //         if (records[currentAuctions[i]].auctionStartBlock + durationOfAuction > block.number) {
+    //             keep[j] = currentAuctions[i];
+    //             j++;
+    //         }
+    //     }
 
-        delete currentAuctions;
-        for (i = 0; i < j; i++) {
-            currentAuctions.push(keep[i]);
-        }
-    }
+    //     delete currentAuctions;
+    //     for (i = 0; i < j; i++) {
+    //         currentAuctions.push(keep[i]);
+    //     }
+    // }
 
+    // deprecated
     // get current auction addresses and their nodes
     // also checks if the auctions in the list have expired.
-    function getCurrentAuctions() public view returns (string[] memory, address[] memory) {
-        string[] memory nodes = new string[](currentAuctions.length);
-        address[] memory auctionAddresses = new address[](currentAuctions.length);
+    // function getCurrentAuctions() public view returns (string[] memory, address[] memory) {
+    //     string[] memory nodes = new string[](currentAuctions.length);
+    //     address[] memory auctionAddresses = new address[](currentAuctions.length);
 
-        for (uint i = 0; i < currentAuctions.length; i++) {
-            nodes[i] = currentAuctions[i];
-            auctionAddresses[i] = records[currentAuctions[i]].auctionAddress;
-        }
+    //     for (uint i = 0; i < currentAuctions.length; i++) {
+    //         nodes[i] = currentAuctions[i];
+    //         auctionAddresses[i] = records[currentAuctions[i]].auctionAddress;
+    //     }
 
-        return (nodes, auctionAddresses);
-    }
+    //     return (nodes, auctionAddresses);
+    // }
 
+    // deprecated
     // gets registered domains and their owner addresses
     //TODO: currently broken, refer to getCurrentAuctions for reference
-    function getRegisteredDomains() public view returns (string[] memory, address[] memory) {
-        string[] memory nodes = new string[](registeredDomains.length);
-        address[] memory ownerAddresses = new address[](registeredDomains.length);
+    // function getRegisteredDomains() public view returns (string[] memory, address[] memory) {
+    //     string[] memory nodes = new string[](registeredDomains.length);
+    //     address[] memory ownerAddresses = new address[](registeredDomains.length);
 
-        for (uint i=0; i<registeredDomains.length; i++) {
-            nodes[i] = registeredDomains[i];
-            ownerAddresses[i] = records[registeredDomains[i]].owner;
-        }
-        return (nodes, ownerAddresses);
+    //     for (uint i=0; i<registeredDomains.length; i++) {
+    //         nodes[i] = registeredDomains[i];
+    //         ownerAddresses[i] = records[registeredDomains[i]].owner;
+    //     }
+    //     return (nodes, ownerAddresses);
+    // }
+
+    // calls BlindAuction to get the stage
+    function getStage(string memory node) 
+        public 
+        view 
+        returns (string memory) 
+    {    
+        BlindAuction auction = BlindAuction(records[node].auctionAddress);
+        string memory stage = auction.getStage();
+        return stage;
     }
 
     //if registered, resolved to owner address, if auctioning, resolve to auction address
     //empty domain returns address(0)
-    function resolveDomain(string memory domain) public view returns (address) {
+    function resolveDomain(string memory domain) 
+        public
+        view 
+        returns (address) 
+    {
         if (records[domain].registered) {
             return records[domain].owner;
         } else {
@@ -203,6 +204,5 @@ contract DomainRegistry {
     function emitPotentialWinner(address winner, uint value) public {
         emit PotentialWinnerFound(winner, value);
     }
-
 
 }
