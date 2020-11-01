@@ -7,16 +7,18 @@ contract BlindAuction {
     //static variables
     address payable public owner;
     string public node;
+
     uint public biddingEnd;
     uint public revealEnd;
+    uint public claimEnd;
     uint public biddingDuration = 2; //blocks
     uint public revealDuration = 2; //blocks
-    bool public ended;
-    bool public domainClaimed;
+    uint public claimDuration = 2; //blocks
     
     //state
-    address public highestBidder;
+    address payable public highestBidder;
     uint public highestBid;
+    bool public domainClaimed;
     
     //events
     event WinnerClaimed(address winner, uint highestBid);
@@ -25,10 +27,6 @@ contract BlindAuction {
     event revealSuccess(address winner, uint highestBid);
 
     //modifiers
-    //godammit kaichin you put the wrong condition at first
-    //modifier onlyBefore(uint _block) { require(block.number < _block); _; }
-    //cus of the above the auction locks up for ONE ENTIRE BLOCK (between bid stage and reveal stage)
-    //TODO: repent
     modifier onlyBefore(uint _block) { require(block.number <= _block); _; }
     modifier onlyAfter(uint _block) { require(block.number > _block); _; }
 
@@ -39,14 +37,15 @@ contract BlindAuction {
 
     //mappings
     mapping (address => Bid[]) public bids;
-    mapping (address => uint) pendingReturns;
-    mapping (address => uint) refunded;
+    //mapping (address => uint) pendingReturns;
+    //mapping (address => uint) refunded;
 
     constructor(string memory _node) public {
         owner = msg.sender;
         node = _node;
         biddingEnd = block.number + biddingDuration;
         revealEnd = biddingEnd + revealDuration;
+        claimEnd = revealEnd + claimEnd;
     }
 
     function bid(bytes32 _blindedBid) 
@@ -100,23 +99,10 @@ contract BlindAuction {
             bidToCheck.blindedBid = bytes32(0);
         }
         msg.sender.transfer(refund);
-        refunded[msg.sender] += refund;
+        // refunded[msg.sender] += refund;
     }
 
-    // Withdraw a bid that is the winning bid, 
-    // bit was once the highest bid during the reveal stage
-    // Qn: should this be just added on to the end of checkIfHighestBid fn?
-    // TODO: combine with checkIfHighestBid
-    function withdraw() public  {
-        uint amount = pendingReturns[msg.sender];
-        if (amount > 0) {
-            // It is important to set this to zero because the recipient
-            // can call this function again as part of the receiving call
-            // before `transfer` returns
-            pendingReturns[msg.sender] = 0;
-            msg.sender.transfer(amount);
-        }
-    }
+    
 
     /// End the auction and send the highest bid to the registry.
     // If I'm not wrong, you only have to check that msg.sender == highestBidder,
@@ -124,6 +110,7 @@ contract BlindAuction {
     function claimWinnerReward()
         public
         onlyAfter(revealEnd)
+        onlyBefore(claimEnd)
     {
         // winner himself must claim
         require(msg.sender == highestBidder);
@@ -138,29 +125,41 @@ contract BlindAuction {
     function getStage() public view returns (string memory) {
         //it is one less to inform what the next stage is
         if (block.number < biddingEnd ) {
-            return "bid";
+            return "bidding";
         } else if (block.number < revealEnd ) {
-            return "reveal";
+            return "revealing";
+        } else if (block.number < claimEnd && !domainClaimed){
+            return "claiming";
+        } else if (domainClaimed) {
+            return "claimed";
         } else {
-            return "end";
+            return "unclaimed";
         }
     }
 
     // This is an "internal" function which means that it
     // can only be called from the contract itself (or from
     // derived contracts).
-    function checkIfHighestBid(address bidder, uint value) internal
+    function checkIfHighestBid(address payable bidder, uint value) internal
             returns (bool success)
     {
         if (value <= highestBid) {
-            return false;
+            return false;   
         }
         if (highestBidder != address(0)) {
             // Refund the previously highest bidder.
-            pendingReturns[highestBidder] += highestBid;
+            address payable previousHighestBidder = highestBidder;
+            uint previousHighestBid = highestBid;
+
+            highestBid = value;
+            highestBidder = bidder;
+
+            previousHighestBidder.transfer(previousHighestBid);
+        } else {
+            // If there was no previous highestBidder/Bid
+            highestBid = value;
+            highestBidder = bidder;
         }
-        highestBid = value;
-        highestBidder = bidder;
 
         //debug
         emit PotentialWinnerFound(highestBidder, highestBid);
@@ -168,6 +167,21 @@ contract BlindAuction {
 
         return true;
     }
+
+    // Withdraw a bid that is the winning bid, 
+    // bit was once the highest bid during the reveal stage
+    // Qn: should this be just added on to the end of checkIfHighestBid fn?
+    // TODO: combine with checkIfHighestBid
+    // function withdraw() public  {
+    //     uint amount = pendingReturns[msg.sender];
+    //     if (amount > 0) {
+    //         // It is important to set this to zero because the recipient
+    //         // can call this function again as part of the receiving call
+    //         // before `transfer` returns
+    //         pendingReturns[msg.sender] = 0;
+    //         msg.sender.transfer(amount);
+    //     }
+    // }
 
 //------------------------------------------------------------------------------
 //debug helper functions
@@ -181,15 +195,15 @@ contract BlindAuction {
         return 69420;
     }
 
-    function checkRefunded() view public returns (uint)
-    {
-        return refunded[msg.sender];
-    }
+    // function checkRefunded() view public returns (uint)
+    // {
+    //     return refunded[msg.sender];
+    // }
 
-    function checkPendingReturns() view public returns (uint)
-    {
-        return pendingReturns[msg.sender];
-    }
+    // function checkPendingReturns() view public returns (uint)
+    // {
+    //     return pendingReturns[msg.sender];
+    // }
 
     function checkHash(
         uint[] memory _values,
@@ -211,6 +225,3 @@ contract BlindAuction {
     }
 
 }
-
-
-
