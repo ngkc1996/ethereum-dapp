@@ -50,6 +50,7 @@ async function load() {
   document.getElementById("domain_query__button").onclick = queryDomain;
   document.getElementById("new_auction__button").onclick = startNewAuction;
   document.getElementById("transaction__send").onclick = sendEther;
+  document.getElementById("registered__refresh").onclick = fetchRegisteredDomains;
 
   //renders + state changes
   await renderAccount();
@@ -98,8 +99,8 @@ async function queryDomain() {
 }
 
 async function fetchRegisteredDomains() {
-  // const registered = await api.getRegisteredDomains();
-  // registered.forEach(register => registeredDomainsMap[register.domain] = register);
+  const registered = await api.getRegisteredDomains();
+  registered.forEach(register => registeredDomainsMap[register.domain] = register);
   renderDomainListing();
 }
 
@@ -148,7 +149,7 @@ async function sendEther() {
   } else {
     const stage = await api.queryDomain(domain);
     if (stage !== auctionStage.CLAIMED) {
-      alert("domain not registered, cannot send ether");
+      alert("domain not registered, cannot send ether3");
       const address = await api.resolveDomain(domain);
       domainsMap[domain] = {domain, address, stage};
       renderDomainQueries();
