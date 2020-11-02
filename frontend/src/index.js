@@ -11,24 +11,8 @@ const auctionStage = {
 let domainQueriesDiv, newAuctionDiv, domainsListingDiv, moreBodyDiv, accountInfoDiv;
 let api;
 
-let domainsMap = {
-  // "fakeAuction": {
-  //   domain: "fakeAuction",
-  //   address: "0x0000",
-  //   stage: "reveal",
-  // },
-  // "fakeAuction2": {
-  //   domain: "fakeAuction2",
-  //   address: "0x0000",
-  //   stage: "reveal",
-  // },
-};
-let registeredDomainsMap = {
-  "fakeDomain": {
-    domain: "fakeDomain",
-    address: "0x0000",
-  }
-}
+let domainsMap = {};
+let registeredDomainsMap = {}
 
 let account = null;
 let selectedAuction = {};
