@@ -8,7 +8,7 @@ const auctionStage = {
   UNCLAIMED: "unclaimed",
 };
 
-let domainQueriesDiv, newAuctionDiv, moreBodyDiv, accountInfoDiv;
+let domainQueriesDiv, newAuctionDiv, domainsListingDiv, moreBodyDiv, accountInfoDiv;
 let api;
 
 let domainsMap = {
@@ -23,8 +23,16 @@ let domainsMap = {
   //   stage: "reveal",
   // },
 };
+let registeredDomainsMap = {
+  "fakeDomain": {
+    domain: "fakeDomain",
+    address: "0x0000",
+  }
+}
+
 let account = null;
 let selectedAuction = {};
+const auctionsStarted = new Set();
 
 window.addEventListener("load", load);
 
@@ -32,6 +40,7 @@ async function load() {
   //get elements
   domainQueriesDiv = document.getElementById("domain__queries");
   newAuctionDiv = document.getElementById("new_auction");
+  domainsListingDiv = document.getElementById("domain__listing");
   moreBodyDiv = document.getElementById("more__body");
   accountInfoDiv = document.getElementById("account__info");
 
@@ -44,6 +53,7 @@ async function load() {
 
   //renders + state changes
   await renderAccount();
+  await fetchRegisteredDomains();
   renderDomainQueries();
 
   //set event subscriptions
@@ -51,29 +61,46 @@ async function load() {
     if (newOwner === account.address) {
       alert(`domain "${node}" successfully claimed`)
     }
-    domainsMap[node] = {
+    registeredDomainsMap[node] = {
       domain: node,
       address: newOwner,
-      stage: auctionStage.CLAIMED,
     };
-    renderDomainQueries();
+    renderDomainListing();
+    if (domainsMap[node]) {
+      domainsMap[node] = {
+        domain: node,
+        address: newOwner,
+        stage: auctionStage.CLAIMED
+      }
+      renderDomainQueries()
+    }
   });
   api.subscribe("NewAuctionStarted", ({ node, auctionAddress }) => {
-    if (domainsMap[node]) {
-      domainsMap[node].stage = auctionStage.BID;
-      domainsMap[node].address = auctionAddress;
+    if (auctionsStarted.has(node)) {
+      domainsMap[node] = {
+        domain: node,
+        address: auctionAddress,
+        stage: auctionStage.BID
+      }
+      renderDomainQueries();
     }
-    renderDomainQueries();
   });
 }
 
 //query domain
 async function queryDomain() {
-  //TODO: implement query
   const domain = document.getElementById("domain_query__input").value;
   const [stage, address] = await Promise.all([api.queryDomain(domain), api.resolveDomain(domain)]);
   domainsMap[domain] = { domain, address, stage };
+  if (stage === auctionStage.CLAIMED) registeredDomainsMap[domain] = { domain, address };
   renderDomainQueries();
+  renderDomainListing();
+}
+
+async function fetchRegisteredDomains() {
+  // const registered = await api.getRegisteredDomains();
+  // registered.forEach(register => registeredDomainsMap[register.domain] = register);
+  renderDomainListing();
 }
 
 //button functions
@@ -100,6 +127,7 @@ async function startNewAuction() {
 
   try {
     await api.startAuction(domain);
+    auctionsStarted.add(domain);
     alert(`auction for "${domain}" started`);
   } catch (e) {
     alert("cannot start auction")
@@ -226,8 +254,12 @@ function renderMore({ domain, address, stage }) {
       f.appendChild(b);
       break;
 
+    case auctionStage.UNCLAIMED:
+      f.appendChild(divWithText("Available for auction"));
+      break;
+
     default:
-      f.appendChild(divWithText("No available actions"))
+      f.appendChild(divWithText("No available actions"));
   }
   moreBodyDiv.appendChild(f);
 }
@@ -266,6 +298,22 @@ function renderDomainQueries() {
 
   //to update the 'more' div if there are changes
   if (selectedAuction.domain) renderMore(domainsMap[selectedAuction.domain]);
+}
+
+function renderDomainListing() {
+  domainsListingDiv.innerHTML = "";
+
+  const domains = Object.values(registeredDomainsMap);
+  domains.forEach(({ domain, address }) => {
+    const d = element("div");
+    d.appendChild(divWithText(`Domain: ${domain}`));
+    d.appendChild(divWithText(`Address: ${address}`));
+    d.onclick = () => {
+      document.getElementById("transaction__domain").value = domain;
+      document.getElementById("transaction__amount").value = 0;
+    }
+    domainsListingDiv.appendChild(d);
+  })
 }
 
 async function renderAccount() {
