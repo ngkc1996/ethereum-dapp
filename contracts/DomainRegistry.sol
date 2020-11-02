@@ -34,9 +34,18 @@ contract DomainRegistry {
         _;
     }
 
+    // checks if domain has .ntu
+    modifier onlyValidDomainForm(string memory node) {
+        bytes memory strBytes = bytes(node);
+        bytes memory validForm = bytes("utn.");
+        for (uint i = 0; i < 4; i++) {
+            require(strBytes[strBytes.length - 1 - i] == validForm[i]);
+        }
+        _;
+    }
+
     modifier onlyUnregisteredDomain(string memory node) {
-        require(records[node].registered == false,
-                "The domain is already registered.");
+        require(records[node].registered == false);
         _;
     }
 
@@ -82,6 +91,7 @@ contract DomainRegistry {
 
     function startAuction(string memory node)
         public
+        onlyValidDomainForm(node)
         onlyUnregisteredDomain(node)
         noOngoingAuction(node)
         returns (address auctionAddress)
@@ -89,17 +99,15 @@ contract DomainRegistry {
         records[node].auctionAddress = address(new BlindAuction(node));
         records[node].auctionStartBlock = block.number;
         records[node].hasAuctionBefore = true;
-        //currentAuctions.push(node);
         emit NewAuctionStarted(node, records[node].auctionAddress);
 
         return records[node].auctionAddress;
     }
 
-    //------------------------------------------------------------------------------
-    //website functions
+//------------------------------------------------------------------------------
+//website functions
 
     // gets registered domains and their owner addresses
-    //TODO: currently broken, refer to getCurrentAuctions for reference
     function getRegisteredDomains() public view returns (string[] memory, address[] memory) {
         string[] memory nodes = new string[](registeredDomains.length);
         address[] memory ownerAddresses = new address[](registeredDomains.length);
@@ -109,24 +117,6 @@ contract DomainRegistry {
             ownerAddresses[i] = records[registeredDomains[i]].owner;
         }
         return (nodes, ownerAddresses);
-    }
-
-    // calls BlindAuction to get the stage
-    function getStage(string memory node) 
-        public 
-        view 
-        returns (string memory) 
-    {    
-        if (records[node].registered == true) {
-            return "claimed";
-        } else if (records[node].hasAuctionBefore == false) {
-            return "unclaimed";
-        } else {
-            BlindAuction auction = BlindAuction(records[node].auctionAddress);
-            string memory stage = auction.getStage();
-            return stage;
-        }
-        
     }
 
     //if registered, resolved to owner address, if auctioning, resolve to auction address

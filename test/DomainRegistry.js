@@ -38,14 +38,14 @@ contract("DomainRegistry", async (accounts) => {
     assert.equal(true, data);
   });
 
-  it("should advance 10 blocks", async() => {
+  it("should advance 1 blocks", async() => {
     let block_initial = await web3.eth.getBlockNumber();
-    for (i = 0; i < 10; i++) {
+    for (i = 0; i < 1; i++) {
       await helper.advanceBlock();
     }
     let block_final = await web3.eth.getBlockNumber();
     console.log("It is now block ", block_final);
-    assert.equal(block_initial + 10, block_final);
+    assert.equal(block_initial + 1, block_final);
   });
 
   it("should be able to reveal and process refunds properly", async() => {
@@ -61,18 +61,18 @@ contract("DomainRegistry", async (accounts) => {
     } catch (e) {
       error = e;
     }
-    assert.equal(!!error, true);
+    assert.equal(!error, true);
     // assert.equal(await auctionInstance.checkHighestBid(), 4);
   });
 
-  it("should advance 10 blocks", async() => {
+  it("should advance 1 blocks", async() => {
     let block_initial = await web3.eth.getBlockNumber();
-    for (i = 0; i < 10; i++) {
+    for (i = 0; i < 1; i++) {
       await helper.advanceBlock();
     }
     let block_final = await web3.eth.getBlockNumber();
     console.log("It is now block ", block_final);
-    assert.equal(block_initial + 10, block_final);
+    assert.equal(block_initial + 1, block_final);
   });
 
   it("should be able to claim reward", async() => {
