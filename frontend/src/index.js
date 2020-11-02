@@ -51,6 +51,7 @@ async function load() {
   document.getElementById("new_auction__button").onclick = startNewAuction;
   document.getElementById("transaction__send").onclick = sendEther;
   document.getElementById("registered__refresh").onclick = fetchRegisteredDomains;
+  document.getElementById("account__refresh").onclick = renderAccount;
 
   //renders + state changes
   await renderAccount();
@@ -159,7 +160,6 @@ async function sendEther() {
 
   try {
     await api.sendEther(domain, valueInWei);
-    alert(`${valueInWei} Wei transferred to "{domain}"`)
   } catch (e) {
     alert(`could not transfer to ${domain}`);
   }

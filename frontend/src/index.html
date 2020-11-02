@@ -6,8 +6,7 @@
   <style>
     body {
       font-family: helvetica;
-      width: 600px;
-      margin: auto;
+      width: 900px;
     }
 
     .card {
@@ -43,6 +42,11 @@
       background-color: white;
     }
 
+    .grid-container {
+      display: grid;
+      grid-template-columns: auto auto;
+    }
+
     .bid_menu {
       margin: 25px 0;
     }
@@ -51,71 +55,100 @@
       margin: 5px 0;
     }
 
+    #left {
+      width: 450px;
+    }
+
+    #right {
+      width: 450px;
+    }
+
     button {
       margin: 8px 10px 8px 0;
       border: none;
       padding: 5px;
       border-radius: 5px;
       font-size: 0.9em;
+      background-color: darkorange;
+      color: white;
+    }
+
+    button:hover {
+      background-color: #EEEEEE;
+    }
+
+    button:active {
+      background-color: white;
     }
 
     hr {
       border: 1px solid #EEEEEE;
     }
+
+    input {
+      margin: 0 5px 0 0;
+    }
   </style>
 </head>
 <body>
-  <div class="card">
-    <h1>Decentralised Domain Registrar</h1>
-  </div>
-
-  <div class="card">
-    <div id="domain">
-      <h3>Domain Queries</h3>
-      <div id="domain_query">
-        <input id="domain_query__input"/>
-        <button id="domain_query__button">Query</button>
+  <div class="grid-container">
+    <div id="left">
+      <div class="card">
+        <h1>Decentralised Domain Registrar</h1>
       </div>
-      <div class="listing__wrapper">
-        <div id="domain__queries" class="listing"></div>
+
+      <div class="card">
+        <div id="domain">
+          <h3>Domain Queries</h3>
+          <div id="domain_query">
+            <input id="domain_query__input"/>
+            <button id="domain_query__button">Query</button>
+          </div>
+          <div class="listing__wrapper">
+            <div id="domain__queries" class="listing"></div>
+          </div>
+        </div>
+        <hr/>
+        <div id="new_auction">
+          <h3>Start New Auction</h3>
+          <label for="new_auction__domain">Domain Name:</label>
+          <input id="new_auction__domain" type="text"/>
+          <button id="new_auction__button">Start Auction</button>
+        </div>
+        <hr/>
+        <div id="more">
+          <h3>Auction Actions</h3>
+          <div id="more__body">No auction selected</div>
+        </div>
       </div>
     </div>
-    <hr/>
-    <div id="new_auction">
-      <h3>Start New Auction</h3>
-      <label for="new_auction__domain">Domain Name:</label>
-      <input id="new_auction__domain" type="text"/>
-      <button id="new_auction__button">Start Auction</button>
-    </div>
-    <hr/>
-    <div id="more">
-      <h3>Auction Actions</h3>
-      <div id="more__body">No auction selected</div>
-    </div>
-  </div>
 
-  <div id="transaction" class="card">
-    <h3>Registered Domains</h3>
-    <button id="registered__refresh">Refresh</button>
-    <div class="listing__wrapper">
-      <div id="domain__listing" class="listing"></div>
-    </div>
-    <hr/>
-    <h3>Send Ether</h3>
-    <div>
-      <label for="transaction__domain">Domain:</label>
-      <input id="transaction__domain" type="text"/>
-    </div>
-    <div>
-      <label for="transaction__amount">Amount (wei):</label>
-      <input id="transaction__amount" type="number"/>
-    </div>
-    <button id="transaction__send">Send</button>
-  </div>
+    <div id="right">
+      <div id="transaction" class="card">
+        <h3>Registered Domains</h3>
+        <button id="registered__refresh">Refresh</button>
+        <div class="listing__wrapper">
+          <div id="domain__listing" class="listing"></div>
+        </div>
+        <hr/>
+        <h3>Send Ether</h3>
+        <div>
+          <label for="transaction__domain">Domain:</label>
+          <input id="transaction__domain" type="text"/>
+        </div>
+        <div>
+          <label for="transaction__amount">Amount (wei):</label>
+          <input id="transaction__amount" type="number"/>
+        </div>
+        <button id="transaction__send">Send</button>
+      </div>
 
-  <div id="account" class="card">
-    <h3>My Account</h3>
-    <div id="account__info"></div>
+      <div id="account" class="card">
+        <h3>My Account</h3>
+        <button id="account__refresh">Refresh</button>
+        <div id="account__info"></div>
+      </div>
+    </div>
   </div>
 </body>
 </html>
