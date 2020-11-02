@@ -45,7 +45,7 @@ contract BlindAuction {
         node = _node;
         biddingEnd = block.number + biddingDuration;
         revealEnd = biddingEnd + revealDuration;
-        claimEnd = revealEnd + claimEnd;
+        claimEnd = revealEnd + claimDuration;
     }
 
     function bid(bytes32 _blindedBid) 

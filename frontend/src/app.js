@@ -42,23 +42,23 @@ class App {
 
   //returns auctioning domains: array of string => auction state
   //auction state is for display next to name, as well as for ui to know what interactions to display
-  async getCurrentAuctions(update = true) {
-    if (update) {
-      await this._domainRegistry.methods.updateCurrentAuctions().send({
-        from: this._account,
-        value: 0,
-      });
-    }
-    const auctions = await this._domainRegistry.methods.getCurrentAuctions().call();
-    const domains = auctions[0];
-    const addresses = auctions[1];
-    const stages = await Promise.all(addresses.map(address => this.getAuctionStage(address)));
-    return domains.map((_, i) => ({
-      domain: domains[i],
-      address: addresses[i],
-      stage: stages[i],
-    }));
-  }
+  // async getCurrentAuctions(update = true) {
+  //   if (update) {
+  //     await this._domainRegistry.methods.updateCurrentAuctions().send({
+  //       from: this._account,
+  //       value: 0,
+  //     });
+  //   }
+  //   const auctions = await this._domainRegistry.methods.getCurrentAuctions().call();
+  //   const domains = auctions[0];
+  //   const addresses = auctions[1];
+  //   const stages = await Promise.all(addresses.map(address => this.getAuctionStage(address)));
+  //   return domains.map((_, i) => ({
+  //     domain: domains[i],
+  //     address: addresses[i],
+  //     stage: stages[i],
+  //   }));
+  // }
 
   //returns accounts: array of {address: string, balance: number}
   async getAccount() {
@@ -66,11 +66,6 @@ class App {
     const accounts = await eth.getAccounts();
     const balance = (await eth.getBalance(accounts[0]))/1000000000000000000;
     return { address: accounts[0], balance };
-  }
-
-  async getAuctionState(domain) {
-    const address = await this._getAddressFor(domain);
-    //TODO: remove
   }
 
   //sends bid
@@ -137,7 +132,7 @@ class App {
   }
 
   async sendEther(domain, valueInWei) {
-    const address = await this._getAddressFor(domain);
+    const address = await this.resolveDomain(domain);
     this._web3.eth.sendTransaction({
       from: this._account,
       to: address,
@@ -153,9 +148,19 @@ class App {
     this._domainRegistry = this._getContract(domainRegistryArtifact, address);
   }
 
+  //for direct communication
   async getAuctionStage(address) {
     const auction = this._getContract(blindAuctionArtifact, address);
     return auction.methods.getStage().call();
+  }
+
+  async queryDomain(domain) {
+    return this._domainRegistry.methods.getStage(domain).call();
+  }
+
+  //returns address of domain
+  async resolveDomain(domain) {
+    return this._domainRegistry.methods.resolveDomain(domain).call();
   }
 
   async init() {
@@ -185,13 +190,8 @@ class App {
     return new this._web3.eth.Contract(artifact.abi, address);
   }
 
-  //returns address of domain
-  async _getAddressFor(domain) {
-    return this._domainRegistry.methods.resolveDomain(domain).call();
-  }
-
   async _getBlindAuctionFor(domain) {
-    const address = await this._getAddressFor(domain);
+    const address = await this.resolveDomain(domain);
     return this._getContract(blindAuctionArtifact, address);
   }
 }
