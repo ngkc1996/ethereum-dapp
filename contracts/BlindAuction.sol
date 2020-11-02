@@ -22,9 +22,6 @@ contract BlindAuction {
     
     //events
     event WinnerClaimed(address winner, uint highestBid);
-    // for debugging
-    event PotentialWinnerFound(address winner, uint highestBid);
-    event revealSuccess(address winner, uint highestBid);
 
     //modifiers
     modifier onlyBefore(uint _block) { require(block.number <= _block); _; }
@@ -37,8 +34,6 @@ contract BlindAuction {
 
     //mappings
     mapping (address => Bid[]) public bids;
-    //mapping (address => uint) pendingReturns;
-    //mapping (address => uint) refunded;
 
     constructor(string memory _node) public {
         owner = msg.sender;
@@ -62,7 +57,6 @@ contract BlindAuction {
     // Reveal blinded bids
     // Refund all except if the bid is currently the highest (potential winner)
     // The submitted values, fakes, secrets must be in the order of the bids
-    // TODO: fix multiple reveal bug - user can call reveal multiple times to get multiple transfers
     function reveal (
         uint[] memory _values,
         bool[] memory _fake,
@@ -94,20 +88,15 @@ contract BlindAuction {
             refund += bidToCheck.deposit;
             if (!fake && bidToCheck.deposit >= value) {
                 if (checkIfHighestBid(msg.sender, value))
-                    // if the bid is the current highest, then don't refund it cos it might be the winner.
+                    // if the bid is the current highest, then do not refund it.
                     refund -= value;
             }
             
         }
         msg.sender.transfer(refund);
-        // refunded[msg.sender] += refund;
     }
 
-    
-
     /// End the auction and send the highest bid to the registry.
-    // If I'm not wrong, you only have to check that msg.sender == highestBidder,
-    // and don't have to check the actual bid again.
     function claimWinnerReward()
         public
         onlyAfter(revealEnd)
@@ -125,11 +114,11 @@ contract BlindAuction {
 
     function getStage() public view returns (string memory) {
         //it is one less to inform what the next stage is
-        if (block.number < biddingEnd ) {
+        if (block.number <= biddingEnd ) {
             return "bidding";
-        } else if (block.number < revealEnd ) {
+        } else if (block.number <= revealEnd ) {
             return "revealing";
-        } else if (block.number < claimEnd && !domainClaimed){
+        } else if (block.number <= claimEnd && !domainClaimed){
             return "claiming";
         } else if (domainClaimed) {
             return "claimed";
@@ -162,27 +151,10 @@ contract BlindAuction {
             highestBidder = bidder;
         }
 
-        //debug
-        emit PotentialWinnerFound(highestBidder, highestBid);
         DomainRegistry(owner).emitPotentialWinner(highestBidder, highestBid);
 
         return true;
     }
-
-    // Withdraw a bid that is the winning bid, 
-    // bit was once the highest bid during the reveal stage
-    // Qn: should this be just added on to the end of checkIfHighestBid fn?
-    // TODO: combine with checkIfHighestBid
-    // function withdraw() public  {
-    //     uint amount = pendingReturns[msg.sender];
-    //     if (amount > 0) {
-    //         // It is important to set this to zero because the recipient
-    //         // can call this function again as part of the receiving call
-    //         // before `transfer` returns
-    //         pendingReturns[msg.sender] = 0;
-    //         msg.sender.transfer(amount);
-    //     }
-    // }
 
 //------------------------------------------------------------------------------
 //debug helper functions
@@ -195,16 +167,6 @@ contract BlindAuction {
         // random number
         return 69420;
     }
-
-    // function checkRefunded() view public returns (uint)
-    // {
-    //     return refunded[msg.sender];
-    // }
-
-    // function checkPendingReturns() view public returns (uint)
-    // {
-    //     return pendingReturns[msg.sender];
-    // }
 
     function checkHash(
         uint[] memory _values,
