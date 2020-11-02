@@ -51,6 +51,7 @@ async function load() {
   document.getElementById("new_auction__button").onclick = startNewAuction;
   document.getElementById("transaction__send").onclick = sendEther;
   document.getElementById("registered__refresh").onclick = fetchRegisteredDomains;
+  document.getElementById("account__refresh").onclick = renderAccount;
 
   //renders + state changes
   await renderAccount();
@@ -140,7 +141,7 @@ async function sendEther() {
   const valueInWei = document.getElementById("transaction__amount").value;
 
   if (domainsMap[domain]) {
-    if (domainsMap[domain] !== auctionStage.CLAIMED)
+    if (domainsMap[domain].stage !== auctionStage.CLAIMED)
     alert("domain not registered, cannot send ether");
     return;
   } else if (parseInt(valueInWei) <= 0) {
@@ -149,7 +150,7 @@ async function sendEther() {
   } else {
     const stage = await api.queryDomain(domain);
     if (stage !== auctionStage.CLAIMED) {
-      alert("domain not registered, cannot send ether3");
+      alert("domain not registered, cannot send ether");
       const address = await api.resolveDomain(domain);
       domainsMap[domain] = {domain, address, stage};
       renderDomainQueries();
@@ -159,7 +160,6 @@ async function sendEther() {
 
   try {
     await api.sendEther(domain, valueInWei);
-    alert(`${valueInWei} Wei transferred to "{domain}"`)
   } catch (e) {
     alert(`could not transfer to ${domain}`);
   }
@@ -213,7 +213,7 @@ function renderMore({ domain, address, stage }) {
 
     case auctionStage.REVEAL:
       const d = element("div");
-      t = divWithText("Note: Be sure to include ALL your bids in a single reveal.");
+      t = divWithText("Note: Be sure to include ALL your bids IN ORDER in a single reveal.");
       const menus = [];
       const menu = bidMenu();
       menu.e.classList.add("bid_menu");

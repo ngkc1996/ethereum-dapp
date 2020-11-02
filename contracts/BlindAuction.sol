@@ -114,11 +114,11 @@ contract BlindAuction {
 
     function getStage() public view returns (string memory) {
         //it is one less to inform what the next stage is
-        if (block.number <= biddingEnd ) {
+        if (block.number < biddingEnd ) {
             return "bidding";
-        } else if (block.number <= revealEnd ) {
+        } else if (block.number < revealEnd ) {
             return "revealing";
-        } else if (block.number <= claimEnd && !domainClaimed){
+        } else if (block.number < claimEnd && !domainClaimed){
             return "claiming";
         } else if (domainClaimed) {
             return "claimed";

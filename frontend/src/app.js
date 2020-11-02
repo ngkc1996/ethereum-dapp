@@ -155,7 +155,17 @@ class App {
   }
 
   async queryDomain(domain) {
-    return this._domainRegistry.methods.getStage(domain).call();
+    const address = await this.resolveDomain(domain);
+    if (address === "0x0000000000000000000000000000000000000000") {
+      return "unclaimed";
+    }
+    const blindAuction = this._getContract(blindAuctionArtifact, address);
+    try {
+      const stage = await blindAuction.methods.getStage().call();
+      return stage
+    } catch (e) {
+      return "claimed";
+    }
   }
 
   //returns address of domain
