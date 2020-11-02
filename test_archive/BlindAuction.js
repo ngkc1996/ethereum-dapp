@@ -1,4 +1,4 @@
-// testing basic functionality of BlindAuction
+  // testing basic functionality of BlindAuction
 
 const { ethers } = require("ethers");
 const BlindAuction = artifacts.require("BlindAuction");
