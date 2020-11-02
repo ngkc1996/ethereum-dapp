@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0
 pragma solidity ^0.6.0;
-// to implement functions that return string[]
 pragma experimental ABIEncoderV2;
 import './BlindAuction.sol';
 
@@ -17,16 +16,12 @@ contract DomainRegistry {
     }
 
     //static variables
-    //uint durationOfAuction = 6; //if after this duration there is no claimant, the auction is voided
     address public owner;
-    //string[] registeredDomains; // nodes that are registered
-    //string[] currentAuctions; //stores nodes that have active auctions
-
-
-    // add list of current auctions
+    string[] registeredDomains;
 
     //mappings
     mapping(string=>Record) records;
+    mapping(address=>string[]) ownerToDomain;
 
     //events
     event NewAuctionStarted(string node, address auctionAddress);
@@ -80,7 +75,8 @@ contract DomainRegistry {
     {
         records[node].owner = newOwner;
         records[node].registered = true;
-        //registeredDomains.push(node);
+        registeredDomains.push(node);
+        ownerToDomain[newOwner].push(node);
         emit NewDomainClaimed(node, newOwner, highestBid);
     }
 
@@ -101,55 +97,19 @@ contract DomainRegistry {
 
     //------------------------------------------------------------------------------
     //website functions
-    //I think these functions are very inefficient, maybe can redo
 
-    //update the current auctions
-    // function updateCurrentAuctions() public {
-    //     string[] memory keep = new string[](currentAuctions.length);
-
-    //     uint i;
-    //     uint j = 0;
-    //     for (i = 0; i < currentAuctions.length; i++) {
-    //         if (records[currentAuctions[i]].auctionStartBlock + durationOfAuction > block.number) {
-    //             keep[j] = currentAuctions[i];
-    //             j++;
-    //         }
-    //     }
-
-    //     delete currentAuctions;
-    //     for (i = 0; i < j; i++) {
-    //         currentAuctions.push(keep[i]);
-    //     }
-    // }
-
-    // deprecated
-    // get current auction addresses and their nodes
-    // also checks if the auctions in the list have expired.
-    // function getCurrentAuctions() public view returns (string[] memory, address[] memory) {
-    //     string[] memory nodes = new string[](currentAuctions.length);
-    //     address[] memory auctionAddresses = new address[](currentAuctions.length);
-
-    //     for (uint i = 0; i < currentAuctions.length; i++) {
-    //         nodes[i] = currentAuctions[i];
-    //         auctionAddresses[i] = records[currentAuctions[i]].auctionAddress;
-    //     }
-
-    //     return (nodes, auctionAddresses);
-    // }
-
-    // deprecated
     // gets registered domains and their owner addresses
     //TODO: currently broken, refer to getCurrentAuctions for reference
-    // function getRegisteredDomains() public view returns (string[] memory, address[] memory) {
-    //     string[] memory nodes = new string[](registeredDomains.length);
-    //     address[] memory ownerAddresses = new address[](registeredDomains.length);
+    function getRegisteredDomains() public view returns (string[] memory, address[] memory) {
+        string[] memory nodes = new string[](registeredDomains.length);
+        address[] memory ownerAddresses = new address[](registeredDomains.length);
 
-    //     for (uint i=0; i<registeredDomains.length; i++) {
-    //         nodes[i] = registeredDomains[i];
-    //         ownerAddresses[i] = records[registeredDomains[i]].owner;
-    //     }
-    //     return (nodes, ownerAddresses);
-    // }
+        for (uint i=0; i<registeredDomains.length; i++) {
+            nodes[i] = registeredDomains[i];
+            ownerAddresses[i] = records[registeredDomains[i]].owner;
+        }
+        return (nodes, ownerAddresses);
+    }
 
     // calls BlindAuction to get the stage
     function getStage(string memory node) 
@@ -181,6 +141,19 @@ contract DomainRegistry {
         } else {
             return records[domain].auctionAddress;
         }
+    }
+
+    // Reversely resolve Ethereum address to their registered domains
+    function getOwnedDomains(address _owner)
+        public
+        view
+        returns (string[] memory)
+    {
+        string[] memory nodes = new string[](ownerToDomain[_owner].length);
+        for (uint i=0; i<ownerToDomain[_owner].length; i++) {
+            nodes[i] = ownerToDomain[_owner][i];
+        }
+        return nodes;
     }
 
 

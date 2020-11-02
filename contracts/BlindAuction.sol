@@ -78,10 +78,13 @@ contract BlindAuction {
         require(_secret.length == length);
 
         uint refund = 0;
+        Bid[] memory tempBids = bids[msg.sender];
+        delete bids[msg.sender]; //clear
+
 
         // iterate through all the bids
         for (uint i = 0; i < length; i++) {
-            Bid storage bidToCheck = bids[msg.sender][i];
+            Bid memory bidToCheck = tempBids[i];
             (uint value, bool fake, bytes32 secret) =
                     (_values[i], _fake[i], _secret[i]);
             if (bidToCheck.blindedBid != keccak256(abi.encodePacked(value, fake, secret))) {
@@ -94,9 +97,7 @@ contract BlindAuction {
                     // if the bid is the current highest, then don't refund it cos it might be the winner.
                     refund -= value;
             }
-            // Make it impossible for the sender to re-claim
-            // the same deposit.
-            bidToCheck.blindedBid = bytes32(0);
+            
         }
         msg.sender.transfer(refund);
         // refunded[msg.sender] += refund;

@@ -55,8 +55,14 @@ contract("DomainRegistry", async (accounts) => {
     let address = await registry.viewAuctionAddress(node);
     let auctionInstance = await BlindAuction.at(address);
     // lower bid reveals first
-    await auctionInstance.reveal([4], [false], [web3.utils.padRight(web3.utils.asciiToHex("1234"), 64)], {from: accounts[1]});
-    assert.equal(await auctionInstance.checkHighestBid(), 4);
+    let error;
+    try {
+      await auctionInstance.reveal([4], [false], [web3.utils.padRight(web3.utils.asciiToHex("1234"), 64)], {from: accounts[1]});
+    } catch (e) {
+      error = e;
+    }
+    assert.equal(!!error, true);
+    // assert.equal(await auctionInstance.checkHighestBid(), 4);
   });
 
   it("should advance 10 blocks", async() => {
