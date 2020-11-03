@@ -11,9 +11,9 @@ contract BlindAuction {
     uint public biddingEnd;
     uint public revealEnd;
     uint public claimEnd;
-    uint public biddingDuration = 2; //blocks
-    uint public revealDuration = 2; //blocks
-    uint public claimDuration = 2; //blocks
+    uint public biddingDuration = 10; //blocks
+    uint public revealDuration = 10; //blocks
+    uint public claimDuration = 10; //blocks
     
     //state
     address payable public highestBidder;
@@ -73,7 +73,7 @@ contract BlindAuction {
 
         uint refund = 0;
         Bid[] memory tempBids = bids[msg.sender];
-        delete bids[msg.sender]; //clear
+        delete bids[msg.sender];
 
 
         // iterate through all the bids
@@ -151,40 +151,7 @@ contract BlindAuction {
             highestBidder = bidder;
         }
 
-        DomainRegistry(owner).emitPotentialWinner(highestBidder, highestBid);
-
         return true;
-    }
-
-//------------------------------------------------------------------------------
-//debug helper functions
-
-    function checkBidAmount() view public returns (uint)
-    {
-        if (bids[msg.sender].length > 0) {
-            return bids[msg.sender][0].deposit;
-        }
-        // random number
-        return 69420;
-    }
-
-    function checkHash(
-        uint[] memory _values,
-        bool[] memory _fake,
-        bytes32[] memory _secret
-    ) view public returns (bool)
-    {
-        if (bids[msg.sender].length > 0) {
-            if (bids[msg.sender][0].blindedBid != keccak256(abi.encodePacked(_values[0], _fake[0], _secret[0]))) {
-                return false;
-            }
-            return true;
-        }
-        return false;
-    }
-
-    function checkHighestBid() view public returns (uint) {
-        return highestBid;
     }
 
 }

@@ -155,24 +155,4 @@ contract DomainRegistry {
         return records[node].auctionAddress;
     }
 
-    function viewThisAddress() public view returns (address)
-    {
-        return address(this);
-    }
-
-    function viewRecordOwner(string memory node) public view returns (address)
-    {
-        return records[node].owner;
-    }
-
-    function viewRegistration(string memory node) public view returns (bool)
-    {
-        return records[node].registered;
-    }
-
-    event PotentialWinnerFound(address winner, uint highestBid);
-    function emitPotentialWinner(address winner, uint value) public {
-        emit PotentialWinnerFound(winner, value);
-    }
-
 }
