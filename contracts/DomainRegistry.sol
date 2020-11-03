@@ -76,20 +76,6 @@ contract DomainRegistry {
         owner = msg.sender;
     }
 
-    // check if needed 
-    // check if domain is registered already
-    function checkIfRegistered(string memory node) 
-        public
-        view
-        returns (bool) 
-    {
-        if(records[node].owner == address(0)) {
-            return false;
-        } else {
-            return true;
-        }
-    }
-
     // function which is called by the BlindAuction contract associated with the domain name
     function registerOwner(string memory node, address newOwner, uint highestBid)
         public
