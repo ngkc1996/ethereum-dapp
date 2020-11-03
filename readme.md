@@ -28,13 +28,37 @@ Users then interact directly with the `BlindAuction` contract instance for all a
 
 The only time when `BlindAuction` interacts with `DomainRegistry` is when the auction winner (determined by the highest bidder at the end of the Reveal Stage) wants to claim the domain. `DomainRegistry` will save the registration details (i.e. domainName -> ownerAddress) in `records`.
 
-Subsequently, when a user wants to send a transaction to a registered domain name he can query the DomainRegistry (in this case, through the website) to resolve the domain name to the corresponding ownerAddress.
+Subsequently, when a user wants to send a transaction to a registered domain name he can query the `DomainRegistry` (in this case, through the website) to resolve the domain name to the corresponding ownerAddress.
 
-The 3 detailed scenarios can be found through the respective links:
+The 3 detailed scenario diagrams can be found through the respective links:
 - [During Auctions](assets/images/during_auctions.png)
 - [Claiming a Domain](assets/images/claiming_a_domain.png)
 - [Sending Ether Through Domain](assets/images/sending_ether_through_domain.png)
 
+## Auction Implementation
+A Blind Auction is implemented. There are 3 stages: Bid, Reveal, Claim.
+
+### Bid
+Users can bid however many times they want in this duration.
+Each bid consists of:
+- `Value`: the value of the bid
+- `Fake flag`: whether the bid is fake or not
+- `Secret`: a secret to add an additional layer of security
+- `Deposit` (value of the transaction): for a bid to be valid, deposit must be >= value
+
+The (value, fake, secret) information is hashed using solidity's Keccak256 hash function and named `blindedBid`. The bid sent to BlindAuction only consists of the `blindedBid` and the deposit, which is the value of the transaction.
+
+This way, there is no way to know before the reveal stage the information of the bids. Even if one checks the transaction values for the bids, there is no way to know if the bids are valid and/or fake. This essentially makes the auction "blind".
+
+### Reveal
+In this stage, bidders can send plaintext versions of their bidding information to `BlindAuction` as proof that they were the bidders. `BlindAuction` internally checks whether the hashed version of the plaintext information matches the prior `blindBid` sent. If a bid is valid (i.e. `deposit` >= `value`) and fake (i.e. fake flag is set as `false`) and is the current highest bid revealed, then it is stored as the `currentHighestBid`. All other bids (including fake and invalid ones) have their deposits refunded to the respective bidder.
+
+Whenever the `currentHighestBid` is increased, the previous `currentHighestBidder` will be refunded the previous `currentHighestBid` amount automatically.
+
+At the end of the reveal stage, the `currentHighestBid` and corresponding `currentHighestBidder` will win the auction. Even if there are higher bids that are unrevealed, they do not win. Unrevealed bids after the reveal stage can also not be refunded, and are basically voided forever.
+
+### Claim
+In this stage, only the `highestBidder` can claim the domain name. `BlindAuction` will send the `bidderAddress` to the `DomainRegistry` to permanently register the domain name under the `bidderAddress`. This information can be subsequently used to resolve the domain name to the ownerAddress.
 
 ## Frontend
 Simple web interface bundled by webpack.
