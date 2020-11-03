@@ -110,6 +110,8 @@ npm run dev              //rebuilds frontend (to fix nonce out of sync issue)
 ```
 
 ## Testing
+For Testing purposes, the bid, reveal and claim duration is set to 10 blocks.
+For Debugging it is best to use 2 blocks.
 Run `truffle test` in the root directory to run included tests. Tests are found in the [test folder](test).
 
 ### Test explanation
@@ -169,3 +171,21 @@ The following explains the events that take place in the testcases, and why some
 
 `"it should be able to send Ether to an account through resolving a domain"`
 - accounts[1] successfully sends accounts[2] 1e+18 Wei through the domain "xxx.ntu" (which is registered to accounts[2]).
+
+# Considerations
+## Security
+- Rentry attack prevention
+	- __reveal__: store the bids to check in memory, clear storage, then proceed to check
+	- __checkIfHighestBid__: internal function protected by rentry hardening in 'reveal'
+	
+## Efficiency + Scalability
+- assumptions:
+    - there will be many auctions happening simultaneously
+    - assumed that people only care about the domain names they want to acquire
+- costly to maintain and update a "current auctions" data structure and has the capacity to grow very fast
+- points for improvement:
+    - possibilty of obscure names being auctioned and taken without anyone competing for it
+		
+## Others
+Given the choice, we may remove the listing of all domains, since it requires a redundant storage structure
+  with reason same as mentioned for omission of listing all auctions
