@@ -11,9 +11,9 @@ contract BlindAuction {
     uint public biddingEnd;
     uint public revealEnd;
     uint public claimEnd;
-    uint public biddingDuration = 10; //blocks
-    uint public revealDuration = 10; //blocks
-    uint public claimDuration = 10; //blocks
+    uint public biddingDuration = 3; //blocks
+    uint public revealDuration = 2; //blocks
+    uint public claimDuration = 2; //blocks
     
     //state
     address payable public highestBidder;

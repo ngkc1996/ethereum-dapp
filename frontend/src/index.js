@@ -1,5 +1,7 @@
 const app = require("./app");
 
+//TODO: address to domains implementation
+
 const auctionStage = {
   BID: "bidding",
   REVEAL: "revealing",
@@ -100,6 +102,8 @@ async function startNewAuction() {
   } else if (domain === "") {
     alert("domain cannot be empty string");
     return;
+  } else if (!isValidDomain(domain)) {
+    alert("invalid domain name, must end with '.ntu' and prefix must be alphanumeric")
   } else {
     const stage = await api.queryDomain(domain);
     if (stage !== auctionStage.UNCLAIMED) {
@@ -358,4 +362,8 @@ function element(element) {
 
 function fragment() {
   return document.createDocumentFragment();
+}
+
+function isValidDomain(domain) {
+  return /^[a-z|A-Z|0-9|.]*[a-z|A-Z|0-9]+(.ntu)$/.test(domain);
 }
