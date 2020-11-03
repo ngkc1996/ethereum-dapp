@@ -8,6 +8,17 @@ const HOST = "127.0.0.1";
 const PORT = "7545";
 const URL = `${PROTOCOL}${HOST}:${PORT}`;
 
+
+/*
+Considerations for development:
+
+1. Always resolve domain from address with contract, do not use info cached from previous call
+2. Use as little special functions as possible, break them into small reusable functions
+3. As much as possible perform any iteration on frontend, do not rely on contract (reduce gas cost)
+4. As much as possible do not rely on contract giving "all" of anything, this may incure a large gas cost
+5. Query only what is required
+
+ */
 class App {
   constructor(web3) {
     this._web3 = web3;
@@ -46,7 +57,7 @@ class App {
     return { address: accounts[0], balance };
   }
 
-  //sends bid
+  //sends bid (blinded)
   async bid(domain, bid) {
     const {value, isFake, secret} = bid;
     if (!secret) throw new Error("no secret");
@@ -62,8 +73,6 @@ class App {
   }
 
   //sends a reveal call to reveal your bids (incentive to be the winner + get deposits back)
-  //can only occur during reveal stage
-  //returns keccak hashes of succeeded bids
   async reveal(domain, bids) {
     const values = [];
     const isFakes = [];
@@ -77,20 +86,6 @@ class App {
     return blindAuction
       .methods
       .reveal(values, isFakes, secrets)
-      .send({
-        from: this._account,
-        value: 0,
-      });
-  }
-
-  //withdraw bid deposit from auction, if any (if you were the highest bidder before)
-  //can occur any time
-  //returns somethingWithdrawn: boolean
-  async withdraw(domain) {
-    const blindAuction = await this._getBlindAuctionFor(domain);
-    await blindAuction
-      .methods
-      .withdraw()
       .send({
         from: this._account,
         value: 0,
@@ -126,12 +121,13 @@ class App {
     this._domainRegistry = this._getContract(domainRegistryArtifact, address);
   }
 
-  //for direct communication
+  //for direct communication with auction
   async getAuctionStage(address) {
     const auction = this._getContract(blindAuctionArtifact, address);
     return auction.methods.getStage().call();
   }
 
+  //returns the stage of the domain
   async queryDomain(domain) {
     const address = await this.resolveDomain(domain);
     if (address === "0x0000000000000000000000000000000000000000") {
@@ -147,6 +143,7 @@ class App {
   }
 
   //returns address of domain
+  //address is returned if claimed or being auctioned, 0x000.... if unclaimed
   async resolveDomain(domain) {
     return this._domainRegistry.methods.resolveDomain(domain).call();
   }
@@ -169,6 +166,7 @@ class App {
     });
   }
 
+  //subscribe to domain registry event
   subscribe(event, callback) {
     if (this._listeners[event] === undefined) this._listeners[event] = [];
     this._listeners[event].push(callback);
@@ -184,12 +182,14 @@ class App {
   }
 }
 
+//Bid constructor
 function Bid(valueInWei, isFake, secret) {
   this.value = valueInWei;
   this.isFake = isFake;
   this.secret = secret;
 }
 
+//api factory
 async function getApi() {
   let web3;
 

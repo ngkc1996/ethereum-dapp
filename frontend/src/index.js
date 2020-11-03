@@ -1,7 +1,5 @@
 const app = require("./app");
 
-//TODO: address to domains implementation
-
 const auctionStage = {
   BID: "bidding",
   REVEAL: "revealing",
@@ -10,12 +8,14 @@ const auctionStage = {
   UNCLAIMED: "unclaimed",
 };
 
+//document elements
 let domainQueriesDiv, newAuctionDiv, domainsListingDiv, moreBodyDiv, accountInfoDiv;
+
 let api;
 
+//states
 let domainsMap = {};
 let registeredDomainsMap = {}
-
 let account = null;
 let selectedAuction = {};
 const auctionsStarted = new Set();
@@ -33,6 +33,7 @@ async function load() {
   //get api
   api = await app.getApi();
 
+  //load buttons
   document.getElementById("domain_query__button").onclick = queryDomain;
   document.getElementById("new_auction__button").onclick = startNewAuction;
   document.getElementById("transaction__send").onclick = sendEther;
@@ -44,7 +45,7 @@ async function load() {
   await fetchRegisteredDomains();
   renderDomainQueries();
 
-  //set event subscriptions
+  //set event subscriptions (rely on asynchronous returns)
   api.subscribe("NewDomainClaimed", ({ newOwner, node }) => {
     if (newOwner === account.address) {
       alert(`domain "${node}" successfully claimed`)
@@ -75,7 +76,7 @@ async function load() {
   });
 }
 
-//query domain
+//Separate domain stage and address calls for ui state update and rendering
 async function queryDomain() {
   const domain = document.getElementById("domain_query__input").value;
   const [stage, address] = await Promise.all([api.queryDomain(domain), api.resolveDomain(domain)]);
@@ -91,12 +92,11 @@ async function fetchRegisteredDomains() {
   renderDomainListing();
 }
 
-//button functions
 async function startNewAuction() {
   const domain = document.getElementById("new_auction__domain").value;
 
-  //check if domain is being auctioned
-  if (domainsMap[domain] && domainsMap[domain].stage !== auctionStage.UNCLAIMED) {
+  //checks for valid auction to be started
+  if (domainsMap[domain] && domainsMap[domain].stage !== auctionStage.UNCLAIMED) {  //domain is already queried to no longer be unclaimed (prevent repeat query)
     alert("domain no longer available for auction");
     return;
   } else if (domain === "") {
@@ -104,7 +104,7 @@ async function startNewAuction() {
     return;
   } else if (!isValidDomain(domain)) {
     alert("invalid domain name, must end with '.ntu' and prefix must be alphanumeric")
-  } else {
+  } else {                                                                          //domain state unknown, query
     const stage = await api.queryDomain(domain);
     if (stage !== auctionStage.UNCLAIMED) {
       alert("domain no longer available for auction");
@@ -129,13 +129,13 @@ async function sendEther() {
   const valueInWei = document.getElementById("transaction__amount").value;
 
   if (domainsMap[domain]) {
-    if (domainsMap[domain].stage !== auctionStage.CLAIMED)
+    if (domainsMap[domain].stage !== auctionStage.CLAIMED)  //domain is already queried to no longer be unclaimed (prevent repeat query)
     alert("domain not registered, cannot send ether");
     return;
   } else if (parseInt(valueInWei) <= 0) {
     alert("ether must be > 0");
     return;
-  } else {
+  } else {                                                   //domain state unknown, query
     const stage = await api.queryDomain(domain);
     if (stage !== auctionStage.CLAIMED) {
       alert("domain not registered, cannot send ether");
@@ -153,7 +153,6 @@ async function sendEther() {
   }
 }
 
-//render functions
 function renderMore({ domain, address, stage }) {
   if (
     selectedAuction.domain === domain
