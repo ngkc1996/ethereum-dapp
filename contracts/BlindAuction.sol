@@ -8,9 +8,11 @@ contract BlindAuction {
     address payable public owner;
     string public node;
 
+    // stages of the auction
     uint public biddingEnd;
     uint public revealEnd;
     uint public claimEnd;
+    // durations of each stage
     uint public biddingDuration = 10; //blocks
     uint public revealDuration = 10; //blocks
     uint public claimDuration = 10; //blocks
@@ -24,30 +26,47 @@ contract BlindAuction {
     event WinnerClaimed(address winner, uint highestBid);
 
     //modifiers
+    // must occur before or on that block
     modifier onlyBefore(uint _block) { require(block.number <= _block); _; }
+    // must occur after that block
     modifier onlyAfter(uint _block) { require(block.number > _block); _; }
 
     struct Bid {
-        bytes32 blindedBid; //hash(value, fake, secret)
+        // blindedBid is the hashed value of (value, fake, secret)
+        // each Bid is characterised by:
+        // value: value of the bid
+        // fake: a flag to denote if the bid is fake or real. false == real, true == fake
+        bytes32 blindedBid;
+        // deposit: the amount of Wei that the user deposited for the bid. For a real bid to count, deposit >= value
         uint deposit;
     }
 
     //mappings
+    // mapping of user addresses to Bid[]
+    // each address can have multiple bids
     mapping (address => Bid[]) public bids;
 
     constructor(string memory _node) public {
+        // owner is the DomainRegistry contract
         owner = msg.sender;
+        // node refers to the domain name being auctioned
         node = _node;
+        // define the block numbers for the various stages referencing the current block number
         biddingEnd = block.number + biddingDuration;
         revealEnd = biddingEnd + revealDuration;
         claimEnd = revealEnd + claimDuration;
     }
 
+    // make a bid
     function bid(bytes32 _blindedBid) 
         public
         payable
+        // only can be done in Bidding Stage
         onlyBefore(biddingEnd)
     {
+        // BlindAuction does not know the details of each bid except the blindedBid (hashed) and deposit
+        // it is impossible for anyone to know the current bids at this point
+        // deposit values do not provide credible information about bidding situation as bids can be fake or invalid
         bids[msg.sender].push(Bid({
             blindedBid: _blindedBid,
             deposit: msg.value
@@ -56,7 +75,9 @@ contract BlindAuction {
 
     // Reveal blinded bids
     // Refund all except if the bid is currently the highest (potential winner)
-    // The submitted values, fakes, secrets must be in the order of the bids
+    // A user must reveal all his bids together, and the submitted values, fakes, secrets must be in the order 
+    // of the bidding
+
     function reveal (
         uint[] memory _values,
         bool[] memory _fake,
@@ -71,10 +92,13 @@ contract BlindAuction {
         require(_fake.length == length);
         require(_secret.length == length);
 
+        // keep track of how much to refund
+        // only valid bids which are currently the highest will not result in a refund
         uint refund = 0;
+        // store all bids for the user in a temporary list and delete the original list
+        // this is to prevnt reentry attacks
         Bid[] memory tempBids = bids[msg.sender];
         delete bids[msg.sender];
-
 
         // iterate through all the bids
         for (uint i = 0; i < length; i++) {
@@ -86,13 +110,16 @@ contract BlindAuction {
                 continue;
             }
             refund += bidToCheck.deposit;
+            // bid must be real and deposit more than bidded value
             if (!fake && bidToCheck.deposit >= value) {
-                if (checkIfHighestBid(msg.sender, value))
+                if (checkIfHighestBid(msg.sender, value)) {
                     // if the bid is the current highest, then do not refund it.
                     refund -= value;
+                }
             }
             
         }
+        // process the refunds
         msg.sender.transfer(refund);
     }
 
@@ -136,6 +163,7 @@ contract BlindAuction {
         if (value <= highestBid) {
             return false;   
         }
+        // if there is a previous highestBidder
         if (highestBidder != address(0)) {
             // Refund the previously highest bidder.
             address payable previousHighestBidder = highestBidder;

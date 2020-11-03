@@ -134,7 +134,7 @@ contract("DomainRegistry", async (accounts) => {
     assert.equal(!!error, true);
   });
 
-  it("should not be able to claim during Claim Stage", async() => {
+  it("should not be able to claim during Reveal Stage", async() => {
     let registry = await DomainRegistry.deployed();
     let node = "xxx.ntu";
     let address = await registry.viewAuctionAddress(node);

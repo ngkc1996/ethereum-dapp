@@ -8,9 +8,14 @@ import './BlindAuction.sol';
 contract DomainRegistry {
 
     struct Record {
+        // owner of the domain name
         address owner;
+        // address of the (last) auction for that domain
         address auctionAddress;
+        // start block number for the (last) auction
         uint auctionStartBlock;
+        // if the domain name has been registered already
+        // registration is forever; has no expiry
         bool registered;
         bool hasAuctionBefore;
     }
@@ -20,7 +25,9 @@ contract DomainRegistry {
     string[] registeredDomains;
 
     //mappings
+    // records corresponding to each domain name
     mapping(string=>Record) records;
+    // to enable reverse resolving of owner to domain name(s)
     mapping(address=>string[]) ownerToDomain;
 
     //events
@@ -37,6 +44,8 @@ contract DomainRegistry {
     // checks if domain has .ntu
     modifier onlyValidDomainForm(string memory node) {
         bytes memory strBytes = bytes(node);
+        // to check from the last character backwards
+        // hence ".ntu" is stored as "utn." for convenience of iteration
         bytes memory validForm = bytes("utn.");
         for (uint i = 0; i < 4; i++) {
             require(strBytes[strBytes.length - 1 - i] == validForm[i]);
@@ -44,16 +53,19 @@ contract DomainRegistry {
         _;
     }
 
+    // domain must be previously unregistered
     modifier onlyUnregisteredDomain(string memory node) {
         require(records[node].registered == false);
         _;
     }
 
+    // there must not be any ongoing auction currently
     modifier noOngoingAuction(string memory node) {
-        //the last auction (if any) has ended, and a reasonable amount of time has been given to claim domain
+        //the last auction (if any) has ended
         if (records[node].hasAuctionBefore == true) {
             BlindAuction auction = BlindAuction(records[node].auctionAddress);
             string memory stage = auction.getStage();
+            // last auction stage must be "unclaimed"
             require(keccak256(abi.encodePacked(stage)) == keccak256(abi.encodePacked("unclaimed")));
         }
         _;
@@ -64,6 +76,7 @@ contract DomainRegistry {
         owner = msg.sender;
     }
 
+    // check if needed 
     // check if domain is registered already
     function checkIfRegistered(string memory node) 
         public
@@ -77,6 +90,7 @@ contract DomainRegistry {
         }
     }
 
+    // function which is called by the BlindAuction contract associated with the domain name
     function registerOwner(string memory node, address newOwner, uint highestBid)
         public
         payable
@@ -89,6 +103,7 @@ contract DomainRegistry {
         emit NewDomainClaimed(node, newOwner, highestBid);
     }
 
+    // starts a new auction
     function startAuction(string memory node)
         public
         onlyValidDomainForm(node)
@@ -149,6 +164,7 @@ contract DomainRegistry {
 
 // ----------------------------------------------------------------------------------
 // debug helper functions
+// only used for "truffle test" unit tests
 
     function viewAuctionAddress(string memory node) public view returns (address)
     {
