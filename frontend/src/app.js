@@ -8,7 +8,6 @@ const HOST = "127.0.0.1";
 const PORT = "7545";
 const URL = `${PROTOCOL}${HOST}:${PORT}`;
 
-//current implementation uses a single secret, though there could be multiple
 class App {
   constructor(web3) {
     this._web3 = web3;
@@ -28,7 +27,6 @@ class App {
       });
   }
 
-  //returns registered domain: array of string => address
   //address can be used to identify which domain names belong to user
   async getRegisteredDomains() {
     const registered = await this._domainRegistry.methods.getRegisteredDomains().call();
@@ -39,26 +37,6 @@ class App {
       address: addresses[i],
     }));
   }
-
-  //returns auctioning domains: array of string => auction state
-  //auction state is for display next to name, as well as for ui to know what interactions to display
-  // async getCurrentAuctions(update = true) {
-  //   if (update) {
-  //     await this._domainRegistry.methods.updateCurrentAuctions().send({
-  //       from: this._account,
-  //       value: 0,
-  //     });
-  //   }
-  //   const auctions = await this._domainRegistry.methods.getCurrentAuctions().call();
-  //   const domains = auctions[0];
-  //   const addresses = auctions[1];
-  //   const stages = await Promise.all(addresses.map(address => this.getAuctionStage(address)));
-  //   return domains.map((_, i) => ({
-  //     domain: domains[i],
-  //     address: addresses[i],
-  //     stage: stages[i],
-  //   }));
-  // }
 
   //returns accounts: array of {address: string, balance: number}
   async getAccount() {
